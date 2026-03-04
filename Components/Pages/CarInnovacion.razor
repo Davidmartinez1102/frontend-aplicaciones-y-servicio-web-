@@ -88,6 +88,7 @@
                         <td>@reg["tipo"]</td>
                         @* Acortamos la descripción en la tabla para que no ocupe demasiado espacio visual *@
                         <td>@(reg["descripcion"]?.ToString()?.Length > 50 ? reg["descripcion"]?.ToString()?.Substring(0, 50) + "..." : reg["descripcion"])</td>
+                       
                         <td>
                             <button class="btn btn-warning btn-sm me-1"
                                     @onclick="() => EditarRegistro(reg)">Editar</button>
