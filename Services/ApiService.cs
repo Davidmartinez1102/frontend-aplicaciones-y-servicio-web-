@@ -31,22 +31,34 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
         {
             try
             {
-                // Hace GET a la API y obtiene la respuesta como JSON
                 string url = $"/api/{tabla}";
                 if (limite.HasValue)
                     url += $"?limite={limite.Value}";
 
-                var respuesta = await _http.GetFromJsonAsync<JsonElement>(url, _jsonOptions);
+                // Usar GetAsync en lugar de GetFromJsonAsync para manejar 204 No Content
+                var response = await _http.GetAsync(url);
 
-                // Extrae la propiedad "datos" de la respuesta
+                // Si es 204 No Content o no exitoso, devolver lista vacía sin intentar leer body
+                if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                    return new List<Dictionary<string, object?>>();
+
+                if (!response.IsSuccessStatusCode)
+                    return new List<Dictionary<string, object?>>();
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                // Si el body está vacío, devolver lista vacía
+                if (string.IsNullOrWhiteSpace(content))
+                    return new List<Dictionary<string, object?>>();
+
+                var respuesta = JsonSerializer.Deserialize<JsonElement>(content, _jsonOptions);
+
                 if (respuesta.TryGetProperty("datos", out JsonElement datos))
-                {
                     return ConvertirDatos(datos);
-                }
 
                 return new List<Dictionary<string, object?>>();
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex)
             {
                 Console.WriteLine($"Error al listar {tabla}: {ex.Message}");
                 return new List<Dictionary<string, object?>>();
@@ -69,17 +81,23 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
                     url += $"?camposEncriptar={camposEncriptar}";
 
                 var respuesta = await _http.PostAsJsonAsync(url, datos);
-                var contenido = await respuesta.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+                var content = await respuesta.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(content))
+                    return (respuesta.IsSuccessStatusCode, respuesta.IsSuccessStatusCode ? "Operación completada." : "Error al procesar la solicitud.");
+
+                var contenido = JsonSerializer.Deserialize<JsonElement>(content, _jsonOptions);
 
                 string mensaje = contenido.TryGetProperty("mensaje", out JsonElement msg)
-                    ? msg.GetString() ?? "Operacion completada."
-                    : "Operacion completada.";
+                    ? msg.GetString() ?? "Operación completada."
+                    : "Operación completada.";
 
                 return (respuesta.IsSuccessStatusCode, mensaje);
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex)
             {
-                return (false, $"Error de conexion: {ex.Message}");
+                return (false, $"Error de conexión: {ex.Message}");
             }
         }
 
@@ -99,17 +117,23 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
                     url += $"?camposEncriptar={camposEncriptar}";
 
                 var respuesta = await _http.PutAsJsonAsync(url, datos);
-                var contenido = await respuesta.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+                var content = await respuesta.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(content))
+                    return (respuesta.IsSuccessStatusCode, respuesta.IsSuccessStatusCode ? "Operación completada." : "Error al procesar la solicitud.");
+
+                var contenido = JsonSerializer.Deserialize<JsonElement>(content, _jsonOptions);
 
                 string mensaje = contenido.TryGetProperty("mensaje", out JsonElement msg)
-                    ? msg.GetString() ?? "Operacion completada."
-                    : "Operacion completada.";
+                    ? msg.GetString() ?? "Operación completada."
+                    : "Operación completada.";
 
                 return (respuesta.IsSuccessStatusCode, mensaje);
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex)
             {
-                return (false, $"Error de conexion: {ex.Message}");
+                return (false, $"Error de conexión: {ex.Message}");
             }
         }
 
@@ -124,17 +148,23 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
             {
                 var respuesta = await _http.DeleteAsync(
                     $"/api/{tabla}/{nombreClave}/{valorClave}");
-                var contenido = await respuesta.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+                var content = await respuesta.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(content))
+                    return (respuesta.IsSuccessStatusCode, respuesta.IsSuccessStatusCode ? "Operación completada." : "Error al procesar la solicitud.");
+
+                var contenido = JsonSerializer.Deserialize<JsonElement>(content, _jsonOptions);
 
                 string mensaje = contenido.TryGetProperty("mensaje", out JsonElement msg)
-                    ? msg.GetString() ?? "Operacion completada."
-                    : "Operacion completada.";
+                    ? msg.GetString() ?? "Operación completada."
+                    : "Operación completada.";
 
                 return (respuesta.IsSuccessStatusCode, mensaje);
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex)
             {
-                return (false, $"Error de conexion: {ex.Message}");
+                return (false, $"Error de conexión: {ex.Message}");
             }
         }
 
@@ -146,8 +176,17 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
         {
             try
             {
-                var respuesta = await _http.GetFromJsonAsync<JsonElement>(
-                    "/api/diagnostico/conexion", _jsonOptions);
+                var response = await _http.GetAsync("/api/diagnostico/conexion");
+
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(content))
+                    return null;
+
+                var respuesta = JsonSerializer.Deserialize<JsonElement>(content, _jsonOptions);
 
                 if (respuesta.TryGetProperty("servidor", out JsonElement servidor))
                 {
