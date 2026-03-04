@@ -1,12 +1,13 @@
-@page "/car_innovacion"
+@page "/enfoque"
 @rendermode InteractiveServer
 @inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
 
-<PageTitle>Car Innovación</PageTitle>
+<PageTitle>Enfoques</PageTitle>
 
 <div class="container mt-4">
-    <h3>Car Innovación</h3>
+    <h3>Gestión de Enfoques</h3>
 
+    @* ───────── ALERTAS ───────── *@
     @if (!string.IsNullOrEmpty(mensaje))
     {
         <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
@@ -15,49 +16,52 @@
         </div>
     }
 
+    @* ───────── BOTÓN NUEVO ───────── *@
     @if (!mostrarFormulario)
     {
-        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nueva Innovación</button>
+        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nuevo Enfoque</button>
     }
 
+    @* ───────── FILTRO LÍMITE ───────── *@
     <div class="d-flex align-items-center mb-3">
-        <label class="form-label me-2 mb-0">Límite:</label>
+        <label class="form-label me-2 mb-0">Mostrar:</label>
         <input class="form-control me-2" type="number" style="width:100px" @bind="limite" />
-        <button class="btn btn-outline-secondary" @onclick="CargarRegistros">Cargar</button>
+        <button class="btn btn-outline-secondary" @onclick="CargarRegistros">Refrescar</button>
     </div>
 
+    @* ───────── FORMULARIO (Basado en Tabla 3) ───────── *@
     @if (mostrarFormulario)
     {
-        <div class="card mb-3">
-            <div class="card-header">
-                @(editando ? "Editar Innovación" : "Nueva Innovación")
+        <div class="card mb-3 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                @(editando ? "Editar Enfoque" : "Nuevo Enfoque")
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">ID</label>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">ID (Código)</label>
                         <input class="form-control" type="number" @bind="campoId" disabled="@editando" />
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Nombre</label>
-                        <input class="form-control" @bind="campoNombre" />
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label">Nombre del Enfoque</label>
+                        <input class="form-control" @bind="campoNombre" placeholder="Ej: Investigación Básica" />
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Tipo</label>
-                        <input class="form-control" @bind="campoTipo" />
-                    </div>
-                    <div class="col-12 mb-3">
+                    <div class="col-md-12 mb-3">
                         <label class="form-label">Descripción</label>
-                        @* Usamos textarea porque en la base de datos es NVARCHAR(MAX) *@
-                        <textarea class="form-control" rows="3" @bind="campoDescripcion"></textarea>
+                        <textarea class="form-control" @bind="campoDescripcion" rows="2"></textarea>
                     </div>
                 </div>
-                <button class="btn btn-success me-2" @onclick="GuardarRegistro">Guardar</button>
-                <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+                <div class="mt-2">
+                    <button class="btn btn-success me-2" @onclick="GuardarRegistro">
+                        <i class="bi bi-save"></i> Guardar
+                    </button>
+                    <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+                </div>
             </div>
         </div>
     }
 
+    @* ───────── INDICADOR DE CARGA ───────── *@
     @if (cargando)
     {
         <div class="d-flex justify-content-center my-4">
@@ -67,33 +71,32 @@
         </div>
     }
 
+    @* ───────── TABLA DE DATOS ───────── *@
     @if (!cargando && registros.Any())
     {
-        <table class="table table-striped table-hover">
+        <table class="table table-striped table-hover border">
             <thead class="table-dark">
                 <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Descripción</th>
-                    <th>Acciones</th>
+                    <th style="width: 10%">ID</th>
+                    <th style="width: 30%">Nombre</th>
+                    <th style="width: 40%">Descripción</th>
+                    <th style="width: 20%">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var reg in registros)
                 {
                     <tr>
-                        <td>@reg["id"]</td>
+                        <td><strong>@reg["id"]</strong></td>
                         <td>@reg["nombre"]</td>
-                        <td>@reg["tipo"]</td>
-                        @* Acortamos la descripción en la tabla para que no ocupe demasiado espacio visual *@
-                        <td>@(reg["descripcion"]?.ToString()?.Length > 50 ? reg["descripcion"]?.ToString()?.Substring(0, 50) + "..." : reg["descripcion"])</td>
-                       
+                        <td>@reg["descripcion"]</td>
                         <td>
-                            <button class="btn btn-warning btn-sm me-1"
-                                    @onclick="() => EditarRegistro(reg)">Editar</button>
-                            <button class="btn btn-danger btn-sm"
-                                    @onclick="() => EliminarRegistro(reg)">Eliminar</button>
+                            <button class="btn btn-warning btn-sm me-1" @onclick="() => EditarRegistro(reg)">
+                                Editar
+                            </button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">
+                                Eliminar
+                            </button>
                         </td>
                     </tr>
                 }
@@ -103,7 +106,7 @@
 
     @if (!cargando && !registros.Any())
     {
-        <div class="alert alert-warning">No se encontraron registros en la tabla car_innovacion.</div>
+        <div class="alert alert-info">No hay enfoques registrados actualmente.</div>
     }
 </div>
 
@@ -115,11 +118,10 @@
     private string mensaje = string.Empty;
     private bool exito = false;
 
-    // Campos del formulario
+    // Campos vinculados a la Tabla 3: enfoque
     private string campoId = string.Empty;
     private string campoNombre = string.Empty;
     private string campoDescripcion = string.Empty;
-    private string campoTipo = string.Empty;
     private int? limite = null;
 
     protected override async Task OnInitializedAsync()
@@ -130,7 +132,8 @@
     private async Task CargarRegistros()
     {
         cargando = true;
-        registros = await Api.ListarAsync("car_innovacion", limite);
+        // Apuntamos a la tabla "enfoque"
+        registros = await Api.ListarAsync("enfoque", limite);
         cargando = false;
     }
 
@@ -140,7 +143,6 @@
         campoId = string.Empty;
         campoNombre = string.Empty;
         campoDescripcion = string.Empty;
-        campoTipo = string.Empty;
         mostrarFormulario = true;
         mensaje = string.Empty;
     }
@@ -151,7 +153,6 @@
         campoId = reg["id"]?.ToString() ?? "";
         campoNombre = reg["nombre"]?.ToString() ?? "";
         campoDescripcion = reg["descripcion"]?.ToString() ?? "";
-        campoTipo = reg["tipo"]?.ToString() ?? "";
         mostrarFormulario = true;
         mensaje = string.Empty;
     }
@@ -160,22 +161,21 @@
     {
         var datos = new Dictionary<string, object?>
         {
-            ["id"] = campoId,
+            ["id"] = int.Parse(campoId),
             ["nombre"] = campoNombre,
-            ["descripcion"] = campoDescripcion,
-            ["tipo"] = campoTipo
+            ["descripcion"] = campoDescripcion
         };
 
         if (editando)
         {
-            datos.Remove("id");
-            var resultado = await Api.ActualizarAsync("car_innovacion", "id", campoId, datos);
+            datos.Remove("id"); 
+            var resultado = await Api.ActualizarAsync("enfoque", "id", campoId, datos);
             exito = resultado.exito;
             mensaje = resultado.mensaje;
         }
         else
         {
-            var resultado = await Api.CrearAsync("car_innovacion", datos);
+            var resultado = await Api.CrearAsync("enfoque", datos);
             exito = resultado.exito;
             mensaje = resultado.mensaje;
         }
@@ -190,12 +190,11 @@
     private async Task EliminarRegistro(Dictionary<string, object?> reg)
     {
         string id = reg["id"]?.ToString() ?? "";
-        var resultado = await Api.EliminarAsync("car_innovacion", "id", id);
+        var resultado = await Api.EliminarAsync("enfoque", "id", id);
         exito = resultado.exito;
         mensaje = resultado.mensaje;
 
-        if (exito)
-            await CargarRegistros();
+        if (exito) await CargarRegistros();
     }
 
     private void Cancelar()
