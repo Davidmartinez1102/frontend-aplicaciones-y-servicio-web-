@@ -1,0 +1,203 @@
+@page "/aa-rc"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject FrontBlazor_AppiGenericaCsharp.Services.SpService Sp
+@inject IJSRuntime JS
+
+<PageTitle>Actividad Académica por Registro Calificado</PageTitle>
+
+<div class="container mt-4">
+    <h3>Gestión: Actividad Académica ↔ Registro Calificado</h3>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = string.Empty"></button>
+        </div>
+    }
+
+    @if (!mostrarFormulario)
+    {
+        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nueva Relación</button>
+    }
+
+    @if (mostrarFormulario)
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white">
+                @(editando ? "Editar Relación AA-RC" : "Nueva Relación AA-RC")
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Actividad Académica</label>
+                        <select class="form-select" @bind="campoActiv" disabled="@editando">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var a in actividades)
+                            {
+                                <option value="@ObtenerValor(a, "id")">@ObtenerValor(a, "nombre")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Registro Calificado</label>
+                        <select class="form-select" @bind="campoRC" disabled="@editando">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var rc in registrosCalificados)
+                            {
+                                <option value="@ObtenerValor(rc, "codigo")">RC #@ObtenerValor(rc, "codigo") — @ObtenerValor(rc, "metodologia")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Componente</label>
+                        <input class="form-control" @bind="campoComponente" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Semestre</label>
+                        <input class="form-control" @bind="campoSemestre" />
+                    </div>
+                </div>
+                <button class="btn btn-success me-2" @onclick="GuardarRegistro">Guardar</button>
+                <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-4"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (registros.Any() && !mostrarFormulario)
+    {
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Actividad Académica</th>
+                    <th>Registro Calificado</th>
+                    <th>Componente</th>
+                    <th>Semestre</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reg in registros)
+                {
+                    <tr>
+                        <td>@ObtenerNombreActividad(ObtenerValor(reg, "activ_academicas_idcurso"))</td>
+                        <td>RC #@ObtenerValor(reg, "registro_calificado_codigo")</td>
+                        <td>@ObtenerValor(reg, "componente")</td>
+                        <td>@ObtenerValor(reg, "semestre")</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm me-1" @onclick="() => EditarRegistro(reg)">Editar</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (!mostrarFormulario)
+    {
+        <div class="alert alert-warning">No hay relaciones registradas.</div>
+    }
+</div>
+
+@code {
+    private List<Dictionary<string, object?>> registros = new();
+    private List<Dictionary<string, object?>> actividades = new();
+    private List<Dictionary<string, object?>> registrosCalificados = new();
+    private bool cargando = true;
+    private bool mostrarFormulario = false;
+    private bool editando = false;
+    private string mensaje = string.Empty;
+    private bool exito = false;
+
+    private int campoActiv = 0;
+    private int campoRC = 0;
+    private string campoComponente = string.Empty;
+    private string campoSemestre = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        actividades = await Api.ListarAsync("activ_academica") ?? new();
+        registrosCalificados = await Api.ListarAsync("registro_calificado") ?? new();
+        await CargarRegistros();
+    }
+
+    private async Task CargarRegistros()
+    {
+        cargando = true;
+        registros = await Api.ListarAsync("aa_rc") ?? new();
+        cargando = false;
+    }
+
+    private string ObtenerNombreActividad(string id)
+    {
+        var a = actividades.FirstOrDefault(x => ObtenerValor(x, "id") == id);
+        return a != null ? ObtenerValor(a, "nombre") : $"ID: {id}";
+    }
+
+    private void NuevoRegistro()
+    {
+        editando = false;
+        campoActiv = 0; campoRC = 0; campoComponente = ""; campoSemestre = "";
+        mostrarFormulario = true; mensaje = string.Empty;
+    }
+
+    private void EditarRegistro(Dictionary<string, object?> reg)
+    {
+        editando = true;
+        campoActiv = int.TryParse(ObtenerValor(reg, "activ_academicas_idcurso"), out int a) ? a : 0;
+        campoRC = int.TryParse(ObtenerValor(reg, "registro_calificado_codigo"), out int rc) ? rc : 0;
+        campoComponente = ObtenerValor(reg, "componente");
+        campoSemestre = ObtenerValor(reg, "semestre");
+        mostrarFormulario = true; mensaje = string.Empty;
+    }
+
+    private async Task GuardarRegistro()
+    {
+        if (campoActiv == 0 || campoRC == 0)
+        {
+            exito = false; mensaje = "Debe seleccionar actividad y registro calificado."; return;
+        }
+
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_activ"] = campoActiv,
+            ["p_rc"] = campoRC,
+            ["p_componente"] = campoComponente,
+            ["p_semestre"] = campoSemestre,
+            ["p_resultado"] = null
+        };
+
+        string sp = editando ? "sp_actualizar_aa_rc" : "sp_insertar_aa_rc";
+        var (ok, _, msg) = await Sp.EjecutarSpAsync(sp, parametros);
+        exito = ok; mensaje = ok ? $"Relación {(editando ? "actualizada" : "creada")} exitosamente." : $"Error: {msg}";
+        if (exito) { mostrarFormulario = false; await CargarRegistros(); }
+    }
+
+    private async Task EliminarRegistro(Dictionary<string, object?> reg)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Eliminar esta relación?");
+        if (!confirmar) return;
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_activ"] = int.Parse(ObtenerValor(reg, "activ_academicas_idcurso")),
+            ["p_rc"] = int.Parse(ObtenerValor(reg, "registro_calificado_codigo")),
+            ["p_resultado"] = null
+        };
+        var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_borrar_aa_rc", parametros);
+        exito = ok; mensaje = ok ? "Relación eliminada." : $"Error: {msg}";
+        if (exito) await CargarRegistros();
+    }
+
+    private void Cancelar() { mostrarFormulario = false; mensaje = string.Empty; }
+
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null) return val.ToString() ?? "";
+        return "";
+    }
+}

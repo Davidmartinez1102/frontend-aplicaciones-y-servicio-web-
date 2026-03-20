@@ -1,0 +1,150 @@
+@page "/programa-ac"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject FrontBlazor_AppiGenericaCsharp.Services.SpService Sp
+@inject IJSRuntime JS
+
+<PageTitle>Programa - Área de Conocimiento</PageTitle>
+
+<div class="container mt-4">
+    <h3>Gestión: Programa ↔ Área de Conocimiento</h3>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = string.Empty"></button>
+        </div>
+    }
+
+    @if (!mostrarFormulario)
+    {
+        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nueva Relación</button>
+    }
+
+    @if (mostrarFormulario)
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white">Nueva Relación Programa - Área de Conocimiento</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Programa</label>
+                        <select class="form-select" @bind="campoPrograma">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var p in programas)
+                            {
+                                <option value="@ObtenerValor(p, "id")">@ObtenerValor(p, "nombre")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Área de Conocimiento</label>
+                        <select class="form-select" @bind="campoArea">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var a in areas)
+                            {
+                                <option value="@ObtenerValor(a, "id")">@ObtenerValor(a, "nombre")</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-success me-2" @onclick="GuardarRegistro">Guardar</button>
+                <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-4"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (registros.Any() && !mostrarFormulario)
+    {
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr><th>Programa</th><th>Área de Conocimiento</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var reg in registros)
+                {
+                    <tr>
+                        <td>@ObtenerNombre(programas, "id", ObtenerValor(reg, "programa"), "nombre")</td>
+                        <td>@ObtenerNombre(areas, "id", ObtenerValor(reg, "area_conocimiento"), "nombre")</td>
+                        <td><button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (!mostrarFormulario)
+    {
+        <div class="alert alert-warning">No hay relaciones registradas.</div>
+    }
+</div>
+
+@code {
+    private List<Dictionary<string, object?>> registros = new();
+    private List<Dictionary<string, object?>> programas = new();
+    private List<Dictionary<string, object?>> areas = new();
+    private bool cargando = true;
+    private bool mostrarFormulario = false;
+    private string mensaje = string.Empty;
+    private bool exito = false;
+    private int campoPrograma = 0;
+    private int campoArea = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        programas = await Api.ListarAsync("programa") ?? new();
+        areas = await Api.ListarAsync("area_conocimiento") ?? new();
+        await CargarRegistros();
+    }
+
+    private async Task CargarRegistros()
+    {
+        cargando = true;
+        registros = await Api.ListarAsync("programa_ac") ?? new();
+        cargando = false;
+    }
+
+    private string ObtenerNombre(List<Dictionary<string, object?>> lista, string pk, string val, string campo)
+    {
+        var item = lista.FirstOrDefault(x => ObtenerValor(x, pk) == val);
+        return item != null ? ObtenerValor(item, campo) : $"ID: {val}";
+    }
+
+    private void NuevoRegistro() { campoPrograma = 0; campoArea = 0; mostrarFormulario = true; mensaje = string.Empty; }
+
+    private async Task GuardarRegistro()
+    {
+        if (campoPrograma == 0 || campoArea == 0) { exito = false; mensaje = "Seleccione programa y área."; return; }
+        var datos = new Dictionary<string, object?> { ["programa"] = campoPrograma, ["area_conocimiento"] = campoArea };
+        var r = await Api.CrearAsync("programa_ac", datos);
+        exito = r.exito; mensaje = r.mensaje;
+        if (exito) { mostrarFormulario = false; await CargarRegistros(); }
+    }
+
+    private async Task EliminarRegistro(Dictionary<string, object?> reg)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Eliminar esta relación?");
+        if (!confirmar) return;
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_programa"] = int.Parse(ObtenerValor(reg, "programa")),
+            ["p_area_conocimiento"] = int.Parse(ObtenerValor(reg, "area_conocimiento")),
+            ["p_resultado"] = null
+        };
+        var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_borrar_programa_ac", parametros);
+        exito = ok; mensaje = ok ? "Relación eliminada." : $"Error: {msg}";
+        if (exito) await CargarRegistros();
+    }
+
+    private void Cancelar() { mostrarFormulario = false; mensaje = string.Empty; }
+
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null) return val.ToString() ?? "";
+        return "";
+    }
+}

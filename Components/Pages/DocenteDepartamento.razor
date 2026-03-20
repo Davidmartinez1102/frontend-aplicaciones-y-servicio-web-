@@ -1,0 +1,239 @@
+@page "/docente-departamento"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject FrontBlazor_AppiGenericaCsharp.Services.SpService Sp
+@inject IJSRuntime JS
+
+<PageTitle>Docente - Departamento (Programa)</PageTitle>
+
+<div class="container mt-4">
+    <h3>Gestión: Docente ↔ Departamento/Programa</h3>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = string.Empty"></button>
+        </div>
+    }
+
+    @if (!mostrarFormulario)
+    {
+        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nueva Asignación</button>
+    }
+
+    @if (mostrarFormulario)
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white">
+                @(editando ? "Editar Asignación Docente" : "Nueva Asignación Docente")
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Docente</label>
+                        <select class="form-select" @bind="campoDocente" disabled="@editando">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var d in docentes)
+                            {
+                                <option value="@ObtenerValor(d, "cedula")">@ObtenerValor(d, "nombres") @ObtenerValor(d, "apellidos")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Programa (Departamento)</label>
+                        <select class="form-select" @bind="campoDepartamento" disabled="@editando">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var p in programas)
+                            {
+                                <option value="@ObtenerValor(p, "id")">@ObtenerValor(p, "nombre")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Dedicación</label>
+                        <select class="form-select" @bind="campoDedicacion">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Tiempo Completo">Tiempo Completo</option>
+                            <option value="Medio Tiempo">Medio Tiempo</option>
+                            <option value="Cátedra">Cátedra</option>
+                            <option value="Ocasional">Ocasional</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Modalidad</label>
+                        <input class="form-control" @bind="campoModalidad" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Fecha Ingreso</label>
+                        <input class="form-control" type="date" @bind="campoFechaIngreso" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Fecha Salida (Opcional)</label>
+                        <input class="form-control" type="date" @bind="campoFechaSalida" />
+                    </div>
+                </div>
+                <button class="btn btn-success me-2" @onclick="GuardarRegistro">Guardar</button>
+                <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-4"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (registros.Any() && !mostrarFormulario)
+    {
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Docente</th>
+                    <th>Programa</th>
+                    <th>Dedicación</th>
+                    <th>Modalidad</th>
+                    <th>Fecha Ingreso</th>
+                    <th>Fecha Salida</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reg in registros)
+                {
+                    <tr>
+                        <td>@ObtenerNombreDocente(ObtenerValor(reg, "docente"))</td>
+                        <td>@ObtenerNombre(programas, "id", ObtenerValor(reg, "departamento"), "nombre")</td>
+                        <td>@ObtenerValor(reg, "dedicacion")</td>
+                        <td>@ObtenerValor(reg, "modalidad")</td>
+                        <td>@FormatearFecha(ObtenerValor(reg, "fecha_ingreso"))</td>
+                        <td>@FormatearFecha(ObtenerValor(reg, "fecha_salida"))</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm me-1" @onclick="() => EditarRegistro(reg)">Editar</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (!mostrarFormulario)
+    {
+        <div class="alert alert-warning">No hay asignaciones registradas.</div>
+    }
+</div>
+
+@code {
+    private List<Dictionary<string, object?>> registros = new();
+    private List<Dictionary<string, object?>> docentes = new();
+    private List<Dictionary<string, object?>> programas = new();
+    private bool cargando = true;
+    private bool mostrarFormulario = false;
+    private bool editando = false;
+    private string mensaje = string.Empty;
+    private bool exito = false;
+
+    private int campoDocente = 0;
+    private int campoDepartamento = 0;
+    private string campoDedicacion = string.Empty;
+    private string campoModalidad = string.Empty;
+    private DateTime campoFechaIngreso = DateTime.Today;
+    private DateTime? campoFechaSalida = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        docentes = await Api.ListarAsync("docente") ?? new();
+        programas = await Api.ListarAsync("programa") ?? new();
+        await CargarRegistros();
+    }
+
+    private async Task CargarRegistros()
+    {
+        cargando = true;
+        registros = await Api.ListarAsync("docente_departamento") ?? new();
+        cargando = false;
+    }
+
+    private string ObtenerNombreDocente(string id)
+    {
+        var d = docentes.FirstOrDefault(x => ObtenerValor(x, "cedula") == id);
+        return d != null ? $"{ObtenerValor(d, "nombres")} {ObtenerValor(d, "apellidos")}" : $"ID: {id}";
+    }
+
+    private string ObtenerNombre(List<Dictionary<string, object?>> lista, string pk, string val, string campo)
+    {
+        var item = lista.FirstOrDefault(x => ObtenerValor(x, pk) == val);
+        return item != null ? ObtenerValor(item, campo) : $"ID: {val}";
+    }
+
+    private void NuevoRegistro()
+    {
+        editando = false;
+        campoDocente = 0; campoDepartamento = 0; campoDedicacion = "";
+        campoModalidad = ""; campoFechaIngreso = DateTime.Today; campoFechaSalida = null;
+        mostrarFormulario = true; mensaje = string.Empty;
+    }
+
+    private void EditarRegistro(Dictionary<string, object?> reg)
+    {
+        editando = true;
+        campoDocente = int.TryParse(ObtenerValor(reg, "docente"), out int d) ? d : 0;
+        campoDepartamento = int.TryParse(ObtenerValor(reg, "departamento"), out int dep) ? dep : 0;
+        campoDedicacion = ObtenerValor(reg, "dedicacion");
+        campoModalidad = ObtenerValor(reg, "modalidad");
+        campoFechaIngreso = DateTime.TryParse(ObtenerValor(reg, "fecha_ingreso"), out var fi) ? fi : DateTime.Today;
+        string fsStr = ObtenerValor(reg, "fecha_salida");
+        campoFechaSalida = DateTime.TryParse(fsStr, out var fs) ? fs : null;
+        mostrarFormulario = true; mensaje = string.Empty;
+    }
+
+    private async Task GuardarRegistro()
+    {
+        if (campoDocente == 0 || campoDepartamento == 0) { exito = false; mensaje = "Seleccione docente y programa."; return; }
+        if (string.IsNullOrWhiteSpace(campoDedicacion)) { exito = false; mensaje = "La dedicación es obligatoria."; return; }
+
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_docente"] = campoDocente,
+            ["p_departamento"] = campoDepartamento,
+            ["p_dedicacion"] = campoDedicacion,
+            ["p_modalidad"] = campoModalidad,
+            ["p_fecha_ingreso"] = campoFechaIngreso.ToString("yyyy-MM-dd"),
+            ["p_fecha_salida"] = campoFechaSalida.HasValue ? campoFechaSalida.Value.ToString("yyyy-MM-dd") : null,
+            ["p_resultado"] = null
+        };
+
+        string sp = editando ? "sp_actualizar_docente_departamento" : "sp_insertar_docente_departamento";
+        var (ok, _, msg) = await Sp.EjecutarSpAsync(sp, parametros);
+        exito = ok; mensaje = ok ? $"Asignación {(editando ? "actualizada" : "creada")} exitosamente." : $"Error: {msg}";
+        if (exito) { mostrarFormulario = false; await CargarRegistros(); }
+    }
+
+    private async Task EliminarRegistro(Dictionary<string, object?> reg)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Eliminar esta asignación?");
+        if (!confirmar) return;
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_docente"] = int.Parse(ObtenerValor(reg, "docente")),
+            ["p_departamento"] = int.Parse(ObtenerValor(reg, "departamento")),
+            ["p_resultado"] = null
+        };
+        var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_borrar_docente_departamento", parametros);
+        exito = ok; mensaje = ok ? "Asignación eliminada." : $"Error: {msg}";
+        if (exito) await CargarRegistros();
+    }
+
+    private void Cancelar() { mostrarFormulario = false; mensaje = string.Empty; }
+
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null) return val.ToString() ?? "";
+        return "";
+    }
+
+    private string FormatearFecha(string fecha)
+    {
+        if (DateTime.TryParse(fecha, out var dt)) return dt.ToString("yyyy-MM-dd");
+        return string.IsNullOrEmpty(fecha) ? "—" : fecha;
+    }
+}
