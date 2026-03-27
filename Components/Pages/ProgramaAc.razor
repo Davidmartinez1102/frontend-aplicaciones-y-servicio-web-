@@ -44,7 +44,8 @@
                             <option value="0">-- Seleccione --</option>
                             @foreach (var a in areas)
                             {
-                                <option value="@ObtenerValor(a, "id")">@ObtenerValor(a, "nombre")</option>
+                                <!-- ← CAMBIO: era ObtenerValor(a, "nombre"), no existe ese campo -->
+                                <option value="@ObtenerValor(a, "id")">@ObtenerEtiquetaArea(a)</option>
                             }
                         </select>
                     </div>
@@ -70,7 +71,8 @@
                 {
                     <tr>
                         <td>@ObtenerNombre(programas, "id", ObtenerValor(reg, "programa"), "nombre")</td>
-                        <td>@ObtenerNombre(areas, "id", ObtenerValor(reg, "area_conocimiento"), "nombre")</td>
+                        <!-- ← CAMBIO: usa el nuevo método en vez de buscar campo "nombre" -->
+                        <td>@ObtenerEtiquetaAreaById(ObtenerValor(reg, "area_conocimiento"))</td>
                         <td><button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button></td>
                     </tr>
                 }
@@ -112,6 +114,23 @@
     {
         var item = lista.FirstOrDefault(x => ObtenerValor(x, pk) == val);
         return item != null ? ObtenerValor(item, campo) : $"ID: {val}";
+    }
+
+    // ← NUEVO: construye la etiqueta visible del área concatenando sus 3 campos reales
+    private string ObtenerEtiquetaArea(Dictionary<string, object?> a)
+    {
+        var gran = ObtenerValor(a, "gran_area");
+        var area = ObtenerValor(a, "area");
+        var disc = ObtenerValor(a, "disciplina");
+        return string.Join(" › ", new[] { gran, area, disc }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+    }
+
+    // ← NUEVO: busca el área por ID y devuelve su etiqueta
+    private string ObtenerEtiquetaAreaById(string id)
+    {
+        var item = areas.FirstOrDefault(x => ObtenerValor(x, "id") == id);
+        return item != null ? ObtenerEtiquetaArea(item) : $"ID: {id}";
     }
 
     private void NuevoRegistro() { campoPrograma = 0; campoArea = 0; mostrarFormulario = true; mensaje = string.Empty; }

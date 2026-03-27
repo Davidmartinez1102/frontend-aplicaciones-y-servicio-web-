@@ -34,7 +34,8 @@
                             <option value="0">-- Seleccione --</option>
                             @foreach (var a in aspectos)
                             {
-                                <option value="@ObtenerValor(a, "id")">@ObtenerValor(a, "nombre")</option>
+                                <!-- ← CAMBIO: era "nombre", no existe. Ahora usa tipo + descripcion -->
+                                <option value="@ObtenerValor(a, "id")">@ObtenerEtiquetaAspecto(a)</option>
                             }
                         </select>
                     </div>
@@ -69,7 +70,8 @@
                 @foreach (var reg in registros)
                 {
                     <tr>
-                        <td>@ObtenerNombre(aspectos, "id", ObtenerValor(reg, "aspecto_normativo"), "nombre")</td>
+                        <!-- ← CAMBIO: era buscar campo "nombre", ahora usa el método nuevo -->
+                        <td>@ObtenerEtiquetaAspectoById(ObtenerValor(reg, "aspecto_normativo"))</td>
                         <td>@ObtenerNombre(programas, "id", ObtenerValor(reg, "programa"), "nombre")</td>
                         <td><button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button></td>
                     </tr>
@@ -112,6 +114,22 @@
     {
         var item = lista.FirstOrDefault(x => ObtenerValor(x, pk) == val);
         return item != null ? ObtenerValor(item, campo) : $"ID: {val}";
+    }
+
+    // ← NUEVO: concatena tipo + descripcion (los campos reales de aspecto_normativo)
+    private string ObtenerEtiquetaAspecto(Dictionary<string, object?> a)
+    {
+        var tipo = ObtenerValor(a, "tipo");
+        var desc = ObtenerValor(a, "descripcion");
+        return string.Join(" — ", new[] { tipo, desc }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+    }
+
+    // ← NUEVO: busca por ID y devuelve la etiqueta
+    private string ObtenerEtiquetaAspectoById(string id)
+    {
+        var item = aspectos.FirstOrDefault(x => ObtenerValor(x, "id") == id);
+        return item != null ? ObtenerEtiquetaAspecto(item) : $"ID: {id}";
     }
 
     private void NuevoRegistro() { campoAspecto = 0; campoPrograma = 0; mostrarFormulario = true; mensaje = string.Empty; }
