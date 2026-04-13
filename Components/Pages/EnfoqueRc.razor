@@ -1,0 +1,173 @@
+@* ══════════════════════════════════════════════════════ *@
+@* ARCHIVO: EnfoqueRc.razor                              *@
+@* TABLA: enfoque_rc (PK compuesta: enfoque + registro)  *@
+@* ══════════════════════════════════════════════════════ *@
+@page "/enfoque-rc"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject FrontBlazor_AppiGenericaCsharp.Services.SpService Sp
+@inject IJSRuntime JS
+
+<PageTitle>Enfoques por Registro Calificado</PageTitle>
+
+<div class="container mt-4">
+    <h3>Gestión: Enfoque ↔ Registro Calificado</h3>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = string.Empty"></button>
+        </div>
+    }
+
+    @if (!mostrarFormulario)
+    {
+        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nueva Relación</button>
+    }
+
+    @if (mostrarFormulario)
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white">Nueva Relación Enfoque - Registro Calificado</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Enfoque</label>
+                        <select class="form-select" @bind="campoEnfoque">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var e in enfoques)
+                            {
+                                <option value="@ObtenerValor(e, "id")">@ObtenerValor(e, "nombre")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Registro Calificado</label>
+                        <select class="form-select" @bind="campoRegistro">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var rc in registrosCalificados)
+                            {
+                                <option value="@ObtenerValor(rc, "codigo")">RC #@ObtenerValor(rc, "codigo") — @ObtenerValor(rc, "metodologia")</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-success me-2" @onclick="GuardarRegistro">Guardar</button>
+                <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-4"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (registros.Any() && !mostrarFormulario)
+    {
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Enfoque</th>
+                    <th>Registro Calificado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reg in registros)
+                {
+                    <tr>
+                        <td>@ObtenerNombreEnfoque(ObtenerValor(reg, "enfoque"))</td>
+                        <td>RC #@ObtenerValor(reg, "registro_calificado")</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (!mostrarFormulario)
+    {
+        <div class="alert alert-warning">No hay relaciones registradas.</div>
+    }
+</div>
+
+@code {
+    private List<Dictionary<string, object?>> registros = new();
+    private List<Dictionary<string, object?>> enfoques = new();
+    private List<Dictionary<string, object?>> registrosCalificados = new();
+    private bool cargando = true;
+    private bool mostrarFormulario = false;
+    private string mensaje = string.Empty;
+    private bool exito = false;
+
+    private int campoEnfoque = 0;
+    private int campoRegistro = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        enfoques = await Api.ListarAsync("enfoque") ?? new();
+        registrosCalificados = await Api.ListarAsync("registro_calificado") ?? new();
+        await CargarRegistros();
+    }
+
+    private async Task CargarRegistros()
+    {
+        cargando = true;
+        registros = await Api.ListarAsync("enfoque_rc") ?? new();
+        cargando = false;
+    }
+
+    private string ObtenerNombreEnfoque(string id)
+    {
+        var e = enfoques.FirstOrDefault(x => ObtenerValor(x, "id") == id);
+        return e != null ? ObtenerValor(e, "nombre") : $"ID: {id}";
+    }
+
+    private void NuevoRegistro()
+    {
+        campoEnfoque = 0; campoRegistro = 0;
+        mostrarFormulario = true; mensaje = string.Empty;
+    }
+
+    private async Task GuardarRegistro()
+    {
+        if (campoEnfoque == 0 || campoRegistro == 0)
+        {
+            exito = false; mensaje = "Debe seleccionar enfoque y registro calificado."; return;
+        }
+        var datos = new Dictionary<string, object?>
+        {
+            ["enfoque"] = campoEnfoque,
+            ["registro_calificado"] = campoRegistro
+        };
+        var r = await Api.CrearAsync("enfoque_rc", datos);
+        exito = r.exito; mensaje = r.mensaje;
+        if (exito) { mostrarFormulario = false; await CargarRegistros(); }
+    }
+
+    private async Task EliminarRegistro(Dictionary<string, object?> reg)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Eliminar esta relación?");
+        if (!confirmar) return;
+
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_enfoque"] = int.Parse(ObtenerValor(reg, "enfoque")),
+            ["p_registro_calificado"] = int.Parse(ObtenerValor(reg, "registro_calificado")),
+            ["p_resultado"] = null
+        };
+        var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_borrar_enfoque_rc", parametros);
+        exito = ok; mensaje = ok ? "Relación eliminada." : $"Error: {msg}";
+        if (exito) await CargarRegistros();
+    }
+
+    private void Cancelar() { mostrarFormulario = false; mensaje = string.Empty; }
+
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null) return val.ToString() ?? "";
+        return "";
+    }
+}

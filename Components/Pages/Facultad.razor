@@ -1,0 +1,254 @@
+@page "/facultad"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject IJSRuntime JS
+
+<PageTitle>Facultades</PageTitle>
+
+<div class="container mt-4">
+    <h3>Gestión de Facultades</h3>
+
+    @* ───────── ALERTA ───────── *@
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = string.Empty"></button>
+        </div>
+    }
+
+    @* ───────── BOTON NUEVO ───────── *@
+    @if (!mostrarFormulario)
+    {
+        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nueva Facultad</button>
+    }
+
+    @* ───────── FORMULARIO ───────── *@
+    @if (mostrarFormulario)
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white">
+                @(editando ? "Editar Facultad" : "Nueva Facultad")
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @* Input de ID: Editable al crear, bloqueado al editar *@
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label">ID Facultad</label>
+                        <input class="form-control" type="number" @bind="campoId" disabled="@editando" />
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">Nombre de la Facultad</label>
+                        <input class="form-control" @bind="campoNombre" />
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">Tipo</label>
+                        <input class="form-control" @bind="campoTipo" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Fecha de Fundación</label>
+                        <input class="form-control" type="date" @bind="campoFechaFun" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Universidad Perteneciente</label>
+                        <select class="form-select" @bind="campoUniversidad">
+                            <option value="">-- Seleccione una Universidad --</option>
+                            @foreach (var uni in universidades)
+                            {
+                                <option value="@uni["id"]">@uni["nombre"]</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-success me-2" @onclick="GuardarRegistro">Guardar</button>
+                <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    @* ───────── SPINNER ───────── *@
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+
+    @* ───────── TABLA ───────── *@
+    @if (!cargando && registros.Any() && !mostrarFormulario)
+    {
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Fecha Fundación</th>
+                    <th>Universidad</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reg in registros)
+                {
+                    <tr>
+                        <td>@ObtenerValor(reg, "id")</td>
+                        <td>@ObtenerValor(reg, "nombre")</td>
+                        <td>@ObtenerValor(reg, "tipo")</td>
+                        <td>@FormatearFecha(ObtenerValor(reg, "fecha_fun"))</td>
+                        @* Aquí usamos la magia para mostrar el nombre de la universidad en vez del ID *@
+                        <td>@ObtenerNombreUniversidad(ObtenerValor(reg, "universidad"))</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm me-1" @onclick="() => EditarRegistro(reg)">Editar</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (!cargando && !registros.Any() && !mostrarFormulario)
+    {
+        <div class="alert alert-warning">No se encontraron facultades registradas.</div>
+    }
+</div>
+
+@code {
+    private List<Dictionary<string, object?>> registros = new();
+    private List<Dictionary<string, object?>> universidades = new();
+    
+    private bool cargando = true;
+    private bool mostrarFormulario = false;
+    private bool editando = false;
+    private string mensaje = string.Empty;
+    private bool exito = false;
+
+    // Campos del formulario
+    private int campoId = 0;
+    private string campoNombre = string.Empty;
+    private string campoTipo = string.Empty;
+    private DateTime campoFechaFun = DateTime.Today;
+    private string campoUniversidad = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Primero cargamos las universidades para el Select
+        universidades = await Api.ListarAsync("universidad");
+        await CargarRegistros();
+    }
+
+    private async Task CargarRegistros()
+    {
+        cargando = true;
+        registros = await Api.ListarAsync("facultad");
+        cargando = false;
+    }
+
+    // Helper para buscar el nombre de la universidad usando su ID
+    private string ObtenerNombreUniversidad(string idUni)
+    {
+        if (string.IsNullOrEmpty(idUni)) return "Sin asignar";
+        var uni = universidades.FirstOrDefault(u => u["id"]?.ToString() == idUni);
+        return uni?["nombre"]?.ToString() ?? $"ID: {idUni}";
+    }
+
+    private void NuevoRegistro()
+    {
+        editando = false;
+        campoId = 0;
+        campoNombre = string.Empty;
+        campoTipo = string.Empty;
+        campoFechaFun = DateTime.Today;
+        campoUniversidad = string.Empty;
+        
+        mostrarFormulario = true;
+        mensaje = string.Empty;
+    }
+
+    private void EditarRegistro(Dictionary<string, object?> reg)
+    {
+        editando = true;
+        
+        // Precargar los datos
+        campoId = int.TryParse(ObtenerValor(reg, "id"), out int id) ? id : 0;
+        campoNombre = ObtenerValor(reg, "nombre");
+        campoTipo = ObtenerValor(reg, "tipo");
+        campoFechaFun = DateTime.TryParse(ObtenerValor(reg, "fecha_fun"), out var dt) ? dt : DateTime.Today;
+        campoUniversidad = ObtenerValor(reg, "universidad");
+        
+        mostrarFormulario = true;
+        mensaje = string.Empty;
+    }
+
+    private async Task GuardarRegistro()
+    {
+        // Armamos el diccionario exacto como lo pide la base de datos
+        var datos = new Dictionary<string, object?>
+        {
+            ["id"] = campoId,
+            ["nombre"] = campoNombre,
+            ["tipo"] = campoTipo,
+            ["fecha_fun"] = campoFechaFun.ToString("yyyy-MM-dd"),
+            ["universidad"] = int.TryParse(campoUniversidad, out int uId) ? uId : null
+        };
+
+        if (editando)
+        {
+            // Como el ID no se debe cambiar (es Primary Key), lo quitamos del cuerpo del UPDATE
+            datos.Remove("id"); 
+            var confirmar = await JS.InvokeAsync<bool>("confirm", $"¿Actualizar Facultad #{campoId}?");
+            if (!confirmar) return;
+
+            var resultado = await Api.ActualizarAsync("facultad", "id", campoId.ToString(), datos);
+            exito = resultado.exito;
+            mensaje = resultado.mensaje;
+        }
+        else
+        {
+            var resultado = await Api.CrearAsync("facultad", datos);
+            exito = resultado.exito;
+            mensaje = resultado.mensaje;
+        }
+
+        if (exito)
+        {
+            mostrarFormulario = false;
+            await CargarRegistros();
+        }
+    }
+
+    private async Task EliminarRegistro(Dictionary<string, object?> reg)
+    {
+        string idStr = ObtenerValor(reg, "id");
+        var confirmar = await JS.InvokeAsync<bool>("confirm", $"¿Eliminar la Facultad #{idStr}?");
+        if (!confirmar) return;
+
+        var resultado = await Api.EliminarAsync("facultad", "id", idStr);
+        exito = resultado.exito;
+        mensaje = resultado.mensaje;
+
+        if (exito) await CargarRegistros();
+    }
+
+    private void Cancelar()
+    {
+        mostrarFormulario = false;
+        mensaje = string.Empty;
+    }
+
+    // Helper para extraer datos de forma segura
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null) return val.ToString() ?? "";
+        return "";
+    }
+
+    private string FormatearFecha(string fecha)
+    {
+        if (DateTime.TryParse(fecha, out var dt)) return dt.ToString("yyyy-MM-dd");
+        return fecha;
+    }
+}

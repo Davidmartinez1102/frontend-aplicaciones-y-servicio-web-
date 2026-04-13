@@ -1,0 +1,632 @@
+@page "/programa"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject FrontBlazor_AppiGenericaCsharp.Services.SpService Sp
+@inject IJSRuntime JS
+@using System.Text.Json
+
+<PageTitle>Programas Académicos</PageTitle>
+
+<div class="container mt-4">
+    <h3>Gestión de Programas Académicos</h3>
+
+    @* ── ALERTA DE ESTADO (éxito o error) ── *@
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = string.Empty"></button>
+        </div>
+    }
+
+    @* ══════════════════════════════════════════════════ *@
+    @*  VISTA 1 – LISTADO DE PROGRAMAS                   *@
+    @* ══════════════════════════════════════════════════ *@
+    @if (vista == "listar")
+    {
+        <button class="btn btn-primary mb-3" @onclick="MostrarFormularioNueva">
+            Nuevo Programa
+        </button>
+
+        @if (cargando)
+        {
+            <div class="d-flex justify-content-center my-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else if (programas.Any())
+        {
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Nivel</th>
+                        <th>Ciudad</th>
+                        <th>Premios</th>
+                        <th>Pasantías</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in programas)
+                    {
+                        <tr>
+                            <td>@ObtenerValor(p, "id")</td>
+                            <td>@ObtenerValor(p, "nombre")</td>
+                            <td>@ObtenerValor(p, "nivel")</td>
+                            <td>@ObtenerValor(p, "ciudad")</td>
+                            <td><span class="badge bg-success">@ObtenerDetalles(p, "premios").Count</span></td>
+                            <td><span class="badge bg-info">@ObtenerDetalles(p, "pasantias").Count</span></td>
+                            <td>
+                                <button class="btn btn-info btn-sm me-1"    @onclick="() => VerPrograma(p)">Ver</button>
+                                <button class="btn btn-warning btn-sm me-1" @onclick="() => EditarPrograma(p)">Editar</button>
+                                <button class="btn btn-danger btn-sm"       @onclick="() => EliminarPrograma(p)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="alert alert-warning">No se encontraron programas.</div>
+        }
+    }
+
+    @* ══════════════════════════════════════════════════ *@
+    @*  VISTA 2 – DETALLE DE UN PROGRAMA                 *@
+    @* ══════════════════════════════════════════════════ *@
+    @if (vista == "ver" && programaActual != null)
+    {
+        <div class="mb-3">
+            <button class="btn btn-secondary me-2" @onclick="Volver">Volver</button>
+            <button class="btn btn-warning"        @onclick="() => EditarPrograma(programaActual)">Editar</button>
+        </div>
+
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white">
+                <strong>Programa: @ObtenerValor(programaActual, "nombre")</strong>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4"><strong>Nivel:</strong>     @ObtenerValor(programaActual, "nivel")</div>
+                    <div class="col-md-4"><strong>Tipo:</strong>      @ObtenerValor(programaActual, "tipo")</div>
+                    <div class="col-md-4"><strong>Ciudad:</strong>    @ObtenerValor(programaActual, "ciudad")</div>
+                    <div class="col-md-4"><strong>Creación:</strong>  @ObtenerValor(programaActual, "fecha_creacion")</div>
+                    <div class="col-md-4"><strong>Cohortes:</strong>  @ObtenerValor(programaActual, "numero_cohortes")</div>
+                    <div class="col-md-4"><strong>Graduados:</strong> @ObtenerValor(programaActual, "cant_graduados")</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                @if (ObtenerDetalles(programaActual, "premios").Any())
+                {
+                    <h5 class="text-success">🏆 Premios</h5>
+                    <ul class="list-group mb-3">
+                        @foreach (var premio in ObtenerDetalles(programaActual, "premios"))
+                        {
+                            <li class="list-group-item">
+                                <strong>@ObtenerValor(premio, "nombre")</strong>
+                                - @ObtenerValor(premio, "entidad_otorgante")
+                                (@ObtenerValor(premio, "pais"))
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+            <div class="col-md-6">
+                @if (ObtenerDetalles(programaActual, "pasantias").Any())
+                {
+                    <h5 class="text-info">💼 Pasantías</h5>
+                    <ul class="list-group mb-3">
+                        @foreach (var pasantia in ObtenerDetalles(programaActual, "pasantias"))
+                        {
+                            <li class="list-group-item">
+                                <strong>@ObtenerValor(pasantia, "nombre")</strong>
+                                en @ObtenerValor(pasantia, "empresa")
+                                (@ObtenerValor(pasantia, "pais"))
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    }
+
+    @* ══════════════════════════════════════════════════ *@
+    @*  VISTA 3 – FORMULARIO (CREAR / EDITAR)            *@
+    @* ══════════════════════════════════════════════════ *@
+    @if (vista == "formulario")
+    {
+        <div class="card mb-3">
+            <div class="card-header bg-dark text-white">
+                @(editando ? $"Editar Programa #{idEditar}" : "Nuevo Programa Académico")
+            </div>
+            <div class="card-body">
+
+                <h5 class="border-bottom pb-2">Datos Básicos</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Nombre del Programa</label>
+                        <input class="form-control" @bind="c_nombre" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Nivel (Ej. Pregrado, Maestría)</label>
+                        <input class="form-control" @bind="c_nivel" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Tipo</label>
+                        <input class="form-control" @bind="c_tipo" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Facultad</label>
+                        <select class="form-select" @bind="c_facultad">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var fac in listaFacultades)
+                            {
+                                <option value="@fac["id"]">@fac["nombre"]</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Ciudad</label>
+                        <input class="form-control" @bind="c_ciudad" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Fecha de Creación</label>
+                        <input class="form-control" @bind="c_fecha_creacion" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Fecha de Cierre (Opcional)</label>
+                        <input class="form-control" @bind="c_fecha_cierre" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Número de Cohortes</label>
+                        <input class="form-control" @bind="c_numero_cohortes" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Cantidad Graduados</label>
+                        <input class="form-control" @bind="c_cant_graduados" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Fecha Última Actualización</label>
+                        <input class="form-control" @bind="c_fecha_actualizacion" />
+                    </div>
+                </div>
+
+                @* ── Detalle: Premios ── *@
+                <h5 class="mt-4 border-bottom pb-2 text-success">🏆 Premios del Programa</h5>
+                @for (int i = 0; i < filasPremios.Count; i++)
+                {
+                    var idx = i;
+                    <div class="row mb-2 align-items-end bg-light p-2 rounded">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Nombre Premio</label>
+                            <input class="form-control form-control-sm" @bind="filasPremios[idx].Nombre" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Entidad Otorgante</label>
+                            <input class="form-control form-control-sm" @bind="filasPremios[idx].EntidadOtorgante" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">País</label>
+                            <input class="form-control form-control-sm" @bind="filasPremios[idx].Pais" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Fecha</label>
+                            <input class="form-control form-control-sm" type="date" @bind="filasPremios[idx].Fecha" />
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-danger btn-sm w-100"
+                                    @onclick="() => QuitarPremio(idx)">✕ Quitar</button>
+                        </div>
+                    </div>
+                }
+                <button class="btn btn-outline-success btn-sm mb-4" @onclick="AgregarPremio">+ Agregar Premio</button>
+
+                @* ── Detalle: Pasantías ── *@
+                <h5 class="mt-2 border-bottom pb-2 text-info">💼 Pasantías del Programa</h5>
+                @for (int i = 0; i < filasPasantias.Count; i++)
+                {
+                    var idx = i;
+                    <div class="row mb-2 align-items-end bg-light p-2 rounded">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Nombre Pasantía</label>
+                            <input class="form-control form-control-sm" @bind="filasPasantias[idx].Nombre" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small">Empresa</label>
+                            <input class="form-control form-control-sm" @bind="filasPasantias[idx].Empresa" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">País</label>
+                            <input class="form-control form-control-sm" @bind="filasPasantias[idx].Pais" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">Descripción</label>
+                            <input class="form-control form-control-sm" @bind="filasPasantias[idx].Descripcion" />
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-danger btn-sm w-100"
+                                    @onclick="() => QuitarPasantia(idx)">✕ Quitar</button>
+                        </div>
+                    </div>
+                }
+                <button class="btn btn-outline-info btn-sm mb-4" @onclick="AgregarPasantia">+ Agregar Pasantía</button>
+
+                <hr />
+                <div>
+                    <button class="btn btn-dark btn-lg me-2" @onclick="GuardarPrograma">💾 Guardar Todo</button>
+                    <button class="btn btn-secondary btn-lg"  @onclick="Volver">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+    // ══════════════════════════════════════════════════
+    //  ESTADO GLOBAL
+    // ══════════════════════════════════════════════════
+
+    private string vista    = "listar";
+    private bool   cargando = true;
+    private string mensaje  = string.Empty;
+    private bool   exito    = false;
+
+    private List<Dictionary<string, object?>> programas       = new();
+    private List<Dictionary<string, object?>> listaFacultades = new();
+    private Dictionary<string, object?>?      programaActual;
+
+    // ══════════════════════════════════════════════════
+    //  CAMPOS DEL FORMULARIO
+    // ══════════════════════════════════════════════════
+
+    private bool   editando              = false;
+    private int    idEditar              = 0;
+    private string c_nombre              = "";
+    private string c_tipo                = "";
+    private string c_nivel               = "";
+    private string c_fecha_creacion      = "";
+    private string c_fecha_cierre        = "";
+    private string c_numero_cohortes     = "";
+    private string c_cant_graduados      = "";
+    private string c_fecha_actualizacion = "";
+    private string c_ciudad              = "";
+    private int    c_facultad            = 0;
+
+    // ══════════════════════════════════════════════════
+    //  FILAS DINÁMICAS (sub-entidades)
+    // ══════════════════════════════════════════════════
+
+    private class PremioFila
+    {
+        public string   Nombre           { get; set; } = "";
+        public string   Descripcion      { get; set; } = "N/A";
+        public DateTime Fecha            { get; set; } = DateTime.Today;
+        public string   EntidadOtorgante { get; set; } = "";
+        public string   Pais             { get; set; } = "";
+    }
+
+    private class PasantiaFila
+    {
+        public string Nombre      { get; set; } = "";
+        public string Pais        { get; set; } = "";
+        public string Empresa     { get; set; } = "";
+        public string Descripcion { get; set; } = "N/A";
+    }
+
+    private List<PremioFila>   filasPremios   = new();
+    private List<PasantiaFila> filasPasantias = new();
+
+    // ══════════════════════════════════════════════════
+    //  CICLO DE VIDA
+    // ══════════════════════════════════════════════════
+
+    protected override async Task OnInitializedAsync()
+    {
+        listaFacultades = await Api.ListarAsync("facultad");
+        await CargarProgramas();
+    }
+
+    // ══════════════════════════════════════════════════
+    //  CARGA DE DATOS
+    // ══════════════════════════════════════════════════
+
+    private async Task CargarProgramas()
+    {
+        cargando = true;
+
+        var parametros = new Dictionary<string, object?> { ["p_resultado"] = null };
+        var (ok, resultados, msg) = await Sp.EjecutarSpAsync("sp_listar_programas_completos", parametros);
+
+        if (ok && resultados.Count > 0)
+        {
+            var jsonStr = resultados[0].Values.FirstOrDefault()?.ToString();
+            if (!string.IsNullOrEmpty(jsonStr))
+            {
+                try   { programas = ParsearJsonArray(jsonStr); }
+                catch { programas = resultados; }
+            }
+        }
+
+        cargando = false;
+    }
+
+    // ══════════════════════════════════════════════════
+    //  NAVEGACIÓN ENTRE VISTAS
+    // ══════════════════════════════════════════════════
+
+    private void MostrarFormularioNueva()
+    {
+        editando = false;
+        LimpiarCampos();
+        vista = "formulario";
+    }
+
+    private void Volver()
+    {
+        vista   = "listar";
+        mensaje = "";
+    }
+
+    // ══════════════════════════════════════════════════
+    //  VER DETALLE
+    // ══════════════════════════════════════════════════
+
+    private async Task VerPrograma(Dictionary<string, object?> p)
+    {
+        int id = int.TryParse(ObtenerValor(p, "id"), out int n) ? n : 0;
+
+        var parametros = new Dictionary<string, object?> { ["p_numero"] = id };
+        var (ok, resultados, _) = await Sp.EjecutarSpAsync("sp_consultar_programa_completo", parametros);
+
+        if (ok && resultados.Count > 0)
+        {
+            var jsonStr = resultados[0].Values.FirstOrDefault()?.ToString();
+            if (!string.IsNullOrEmpty(jsonStr))
+            {
+                try   { programaActual = AplanarJson(jsonStr, "programa"); }
+                catch { programaActual = p; }
+            }
+        }
+
+        vista = "ver";
+    }
+
+    // ══════════════════════════════════════════════════
+    //  EDITAR
+    // ══════════════════════════════════════════════════
+
+    private void EditarPrograma(Dictionary<string, object?> p)
+    {
+        editando = true;
+        idEditar = int.TryParse(ObtenerValor(p, "id"), out int n) ? n : 0;
+
+        c_nombre              = ObtenerValor(p, "nombre");
+        c_tipo                = ObtenerValor(p, "tipo");
+        c_nivel               = ObtenerValor(p, "nivel");
+        c_fecha_creacion      = ObtenerValor(p, "fecha_creacion");
+        c_fecha_cierre        = ObtenerValor(p, "fecha_cierre");
+        c_numero_cohortes     = ObtenerValor(p, "numero_cohortes");
+        c_cant_graduados      = ObtenerValor(p, "cant_graduados");
+        c_fecha_actualizacion = ObtenerValor(p, "fecha_actualizacion");
+        c_ciudad              = ObtenerValor(p, "ciudad");
+        c_facultad            = int.TryParse(ObtenerValor(p, "facultad"), out int f) ? f : 0;
+
+        filasPremios = ObtenerDetalles(p, "premios").Select(pr => new PremioFila
+        {
+            Nombre           = ObtenerValor(pr, "nombre"),
+            EntidadOtorgante = ObtenerValor(pr, "entidad_otorgante"),
+            Pais             = ObtenerValor(pr, "pais"),
+            Fecha            = DateTime.TryParse(ObtenerValor(pr, "fecha"), out var dt) ? dt : DateTime.Today
+        }).ToList();
+
+        filasPasantias = ObtenerDetalles(p, "pasantias").Select(pa => new PasantiaFila
+        {
+            Nombre      = ObtenerValor(pa, "nombre"),
+            Empresa     = ObtenerValor(pa, "empresa"),
+            Pais        = ObtenerValor(pa, "pais"),
+            Descripcion = ObtenerValor(pa, "descripcion")
+        }).ToList();
+
+        vista = "formulario";
+    }
+
+    // ══════════════════════════════════════════════════
+    //  GUARDAR (CREAR O ACTUALIZAR)
+    // ══════════════════════════════════════════════════
+
+    private async Task GuardarPrograma()
+    {
+        var premiosValidos = filasPremios
+            .Where(p => !string.IsNullOrEmpty(p.Nombre))
+            .Select(p => new
+            {
+                nombre            = p.Nombre,
+                descripcion       = p.Descripcion,
+                fecha             = p.Fecha.ToString("yyyy-MM-dd"),
+                entidad_otorgante = p.EntidadOtorgante,
+                pais              = p.Pais
+            }).ToList();
+
+        var pasantiasValidas = filasPasantias
+            .Where(p => !string.IsNullOrEmpty(p.Nombre))
+            .Select(p => new
+            {
+                nombre      = p.Nombre,
+                pais        = p.Pais,
+                empresa     = p.Empresa,
+                descripcion = p.Descripcion
+            }).ToList();
+
+        string? jsonPremios   = premiosValidos.Any()   ? JsonSerializer.Serialize(premiosValidos)   : null;
+        string? jsonPasantias = pasantiasValidas.Any() ? JsonSerializer.Serialize(pasantiasValidas) : null;
+
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_nombre"]              = Str(c_nombre),
+            ["p_tipo"]                = Str(c_tipo),
+            ["p_nivel"]               = Str(c_nivel),
+            ["p_fecha_creacion"]      = Str(c_fecha_creacion),
+            ["p_fecha_cierre"]        = Str(c_fecha_cierre),
+            ["p_numero_cohortes"]     = Str(c_numero_cohortes),
+            ["p_cant_graduados"]      = Str(c_cant_graduados),
+            ["p_fecha_actualizacion"] = Str(c_fecha_actualizacion),
+            ["p_ciudad"]              = Str(c_ciudad),
+            ["p_facultad"]            = c_facultad,
+            ["p_premios"]             = jsonPremios,
+            ["p_pasantias"]           = jsonPasantias,
+        };
+
+        if (editando)
+        {
+            parametros["p_numero"] = idEditar;
+            var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_actualizar_programa_completo", parametros);
+            exito   = ok;
+            mensaje = ok ? "Programa actualizado con éxito." : $"Error: {msg}";
+        }
+        else
+        {
+            var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_insertar_programa_completo", parametros);
+            exito   = ok;
+            mensaje = ok ? "Programa creado con éxito." : $"Error: {msg}";
+        }
+
+        if (exito)
+        {
+            await CargarProgramas();
+            vista = "listar";
+        }
+    }
+
+    // ══════════════════════════════════════════════════
+    //  ELIMINAR
+    // ══════════════════════════════════════════════════
+
+    private async Task EliminarPrograma(Dictionary<string, object?> p)
+    {
+        int id = int.TryParse(ObtenerValor(p, "id"), out int n) ? n : 0;
+        bool confirmar = await JS.InvokeAsync<bool>("confirm", $"¿Borrar completamente el programa {id} y sus detalles?");
+        if (!confirmar) return;
+
+        var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_borrar_programa_completo", new Dictionary<string, object?>
+        {
+            ["p_numero"] = id
+        });
+
+        exito   = ok;
+        mensaje = ok ? "Eliminado correctamente." : $"Error: {msg}";
+        if (ok) await CargarProgramas();
+    }
+
+    // ══════════════════════════════════════════════════
+    //  GESTIÓN DE FILAS DINÁMICAS
+    // ══════════════════════════════════════════════════
+
+    private void AgregarPremio()           => filasPremios.Add(new PremioFila());
+    private void QuitarPremio(int index)   => filasPremios.RemoveAt(index);
+    private void AgregarPasantia()         => filasPasantias.Add(new PasantiaFila());
+    private void QuitarPasantia(int index) => filasPasantias.RemoveAt(index);
+
+    // ══════════════════════════════════════════════════
+    //  HELPERS – LIMPIEZA Y UTILIDADES
+    // ══════════════════════════════════════════════════
+
+    /// <summary>Convierte string vacío/whitespace a null para evitar Size=0 en SqlParameter del backend.</summary>
+    private static object? Str(string? valor)
+        => string.IsNullOrWhiteSpace(valor) ? null : (object?)valor;
+
+    private void LimpiarCampos()
+    {
+        c_nombre = c_tipo = c_nivel = c_fecha_creacion = c_fecha_cierre =
+        c_numero_cohortes = c_cant_graduados = c_fecha_actualizacion = c_ciudad = "";
+        c_facultad = 0;
+        filasPremios.Clear();
+        filasPasantias.Clear();
+    }
+
+    /// <summary>Obtiene el valor string de una clave en el diccionario; retorna "" si no existe.</summary>
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null)
+            return val.ToString() ?? "";
+        return "";
+    }
+
+    /// <summary>Obtiene la lista de sub-entidades (premios, pasantías) desde el campo JSON del maestro.</summary>
+    private List<Dictionary<string, object?>> ObtenerDetalles(Dictionary<string, object?> maestro, string clave)
+    {
+        if (maestro.TryGetValue(clave, out var val) && val != null)
+        {
+            var strVal = val.ToString() ?? "";
+            if (strVal.StartsWith("["))
+            {
+                try { return ParsearJsonArray(strVal); } catch { }
+            }
+            if (val is List<Dictionary<string, object?>> lista) return lista;
+        }
+        return new();
+    }
+
+    // ══════════════════════════════════════════════════
+    //  HELPERS – PARSEO JSON
+    // ══════════════════════════════════════════════════
+
+    /// <summary>Convierte un array JSON en lista de diccionarios.</summary>
+    private List<Dictionary<string, object?>> ParsearJsonArray(string json)
+    {
+        var lista = new List<Dictionary<string, object?>>();
+        var doc   = JsonDocument.Parse(json);
+
+        foreach (var elem in doc.RootElement.EnumerateArray())
+        {
+            var dic = new Dictionary<string, object?>();
+            foreach (var prop in elem.EnumerateObject())
+            {
+                dic[prop.Name] = prop.Value.ValueKind switch
+                {
+                    JsonValueKind.String => prop.Value.GetString(),
+                    JsonValueKind.Number => prop.Value.TryGetInt32(out int i) ? i : prop.Value.GetDouble(),
+                    _                   => prop.Value.GetRawText()
+                };
+            }
+            lista.Add(dic);
+        }
+        return lista;
+    }
+
+    /// <summary>
+    /// Aplana un JSON con estructura { maestro: {...}, premios: [...], pasantias: [...] }
+    /// en un solo diccionario plano, manteniendo premios/pasantías como JSON crudo.
+    /// </summary>
+    private Dictionary<string, object?> AplanarJson(string json, string claveMaestro)
+    {
+        var doc = JsonDocument.Parse(json);
+        var res = new Dictionary<string, object?>();
+
+        if (doc.RootElement.TryGetProperty(claveMaestro, out var obj) && obj.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var prop in obj.EnumerateObject())
+            {
+                res[prop.Name] = prop.Value.ValueKind switch
+                {
+                    JsonValueKind.String => prop.Value.GetString(),
+                    JsonValueKind.Number => prop.Value.TryGetInt32(out int i) ? i : prop.Value.GetDouble(),
+                    _                   => prop.Value.GetRawText()
+                };
+            }
+        }
+
+        if (doc.RootElement.TryGetProperty("premios",   out var prem)) res["premios"]   = prem.GetRawText();
+        if (doc.RootElement.TryGetProperty("pasantias", out var pas))  res["pasantias"] = pas.GetRawText();
+
+        return res;
+    }
+}

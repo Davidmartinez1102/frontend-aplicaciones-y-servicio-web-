@@ -1,0 +1,269 @@
+@page "/alianza"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject FrontBlazor_AppiGenericaCsharp.Services.SpService Sp
+@inject IJSRuntime JS
+
+<PageTitle>Alianzas</PageTitle>
+
+<div class="container mt-4">
+    <h3>Gestión de Alianzas</h3>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger") alert-dismissible fade show">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = string.Empty"></button>
+        </div>
+    }
+
+    @if (!mostrarFormulario)
+    {
+        <button class="btn btn-primary mb-3" @onclick="NuevoRegistro">Nueva Alianza</button>
+    }
+
+    @if (mostrarFormulario)
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white">
+                @(editando ? "Editar Alianza" : "Nueva Alianza")
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Aliado (Empresa/Institución)</label>
+                        <select class="form-select" @bind="campoAliado" disabled="@editando">
+                            <option value="0">-- Seleccione un Aliado --</option>
+                            @foreach (var a in aliados)
+                            {
+                                <option value="@ObtenerValor(a, "nit")">@ObtenerValor(a, "razon_social") (NIT: @ObtenerValor(a, "nit"))</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Programa (Departamento)</label>
+                        <select class="form-select" @bind="campoDepartamento" disabled="@editando">
+                            <option value="0">-- Seleccione un Programa --</option>
+                            @foreach (var p in programas)
+                            {
+                                <option value="@ObtenerValor(p, "id")">@ObtenerValor(p, "nombre")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Fecha de Inicio</label>
+                        <input class="form-control" type="date" @bind="campoFechaInicio" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Fecha de Fin (Opcional)</label>
+                        <input class="form-control" type="date" @bind="campoFechaFin" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Docente Encargado (Opcional)</label>
+                        <select class="form-select" @bind="campoDocente">
+                            <option value="0">-- Ninguno --</option>
+                            @foreach (var d in docentes)
+                            {
+                                <option value="@ObtenerValor(d, "cedula")">@ObtenerValor(d, "nombres") @ObtenerValor(d, "apellidos")</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-success me-2" @onclick="GuardarRegistro">Guardar</button>
+                <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-4"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (registros.Any() && !mostrarFormulario)
+    {
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Aliado</th>
+                    <th>Programa</th>
+                    <th>Fecha Inicio</th>
+                    <th>Fecha Fin</th>
+                    <th>Docente Encargado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reg in registros)
+                {
+                    <tr>
+                        <td>@ObtenerNombreAliado(ObtenerValor(reg, "aliado"))</td>
+                        <td>@ObtenerNombrePrograma(ObtenerValor(reg, "departamento"))</td>
+                        <td>@FormatearFecha(ObtenerValor(reg, "fecha_inicio"))</td>
+                        <td>@FormatearFecha(ObtenerValor(reg, "fecha_fin"))</td>
+                        <td>@ObtenerNombreDocente(ObtenerValor(reg, "docente"))</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm me-1" @onclick="() => EditarRegistro(reg)">Editar</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => EliminarRegistro(reg)">Eliminar</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (!mostrarFormulario)
+    {
+        <div class="alert alert-warning">No hay alianzas registradas.</div>
+    }
+</div>
+
+@code {
+    private List<Dictionary<string, object?>> registros = new();
+    private List<Dictionary<string, object?>> aliados = new();
+    private List<Dictionary<string, object?>> programas = new();
+    private List<Dictionary<string, object?>> docentes = new();
+
+    private bool cargando = true;
+    private bool mostrarFormulario = false;
+    private bool editando = false;
+    private string mensaje = string.Empty;
+    private bool exito = false;
+
+    // Campos del formulario
+    private long campoAliado = 0;
+    private int campoDepartamento = 0;
+    private DateTime campoFechaInicio = DateTime.Today;
+    private DateTime? campoFechaFin = null;
+    private int campoDocente = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // FIX: Evitamos que las listas queden nulas usando ?? new()
+        aliados = await Api.ListarAsync("aliado") ?? new();
+        programas = await Api.ListarAsync("programa") ?? new();
+        docentes = await Api.ListarAsync("docente") ?? new();
+        await CargarRegistros();
+    }
+
+    private async Task CargarRegistros()
+    {
+        cargando = true;
+        // FIX: Evitamos que la lista de registros quede nula
+        registros = await Api.ListarAsync("alianza") ?? new();
+        cargando = false;
+    }
+
+    // ───────── HELPERS PARA BUSCAR NOMBRES DE FORMA SEGURA ─────────
+    private string ObtenerNombreAliado(string id)
+    {
+        var a = aliados.FirstOrDefault(x => ObtenerValor(x, "nit") == id);
+        return a != null ? ObtenerValor(a, "razon_social") : "N/A";
+    }
+
+    private string ObtenerNombrePrograma(string id)
+    {
+        var p = programas.FirstOrDefault(x => ObtenerValor(x, "id") == id);
+        return p != null ? ObtenerValor(p, "nombre") : "N/A";
+    }
+
+    private string ObtenerNombreDocente(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "Ninguno";
+        var d = docentes.FirstOrDefault(x => ObtenerValor(x, "cedula") == id);
+        return d != null ? $"{ObtenerValor(d, "nombres")} {ObtenerValor(d, "apellidos")}" : "N/A";
+    }
+
+    // ───────── ACCIONES DEL FORMULARIO ─────────
+    private void NuevoRegistro()
+    {
+        editando = false;
+        campoAliado = 0;
+        campoDepartamento = 0;
+        campoFechaInicio = DateTime.Today;
+        campoFechaFin = null;
+        campoDocente = 0;
+        mostrarFormulario = true;
+        mensaje = string.Empty;
+    }
+
+    private void EditarRegistro(Dictionary<string, object?> reg)
+    {
+        editando = true;
+        campoAliado = long.TryParse(ObtenerValor(reg, "aliado"), out long a) ? a : 0;
+        campoDepartamento = int.TryParse(ObtenerValor(reg, "departamento"), out int d) ? d : 0;
+        campoFechaInicio = DateTime.TryParse(ObtenerValor(reg, "fecha_inicio"), out var fi) ? fi : DateTime.Today;
+        
+        string ffStr = ObtenerValor(reg, "fecha_fin");
+        campoFechaFin = DateTime.TryParse(ffStr, out var ff) ? ff : null;
+        
+        campoDocente = int.TryParse(ObtenerValor(reg, "docente"), out int doc) ? doc : 0;
+        
+        mostrarFormulario = true;
+        mensaje = string.Empty;
+    }
+
+    private async Task GuardarRegistro()
+    {
+        if (campoAliado == 0 || campoDepartamento == 0)
+        {
+            exito = false; mensaje = "Debe seleccionar un Aliado y un Programa."; return;
+        }
+
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_aliado"] = campoAliado,
+            ["p_departamento"] = campoDepartamento,
+            ["p_fecha_inicio"] = campoFechaInicio.ToString("yyyy-MM-dd"),
+            ["p_fecha_fin"] = campoFechaFin.HasValue ? campoFechaFin.Value.ToString("yyyy-MM-dd") : null,
+            ["p_docente"] = campoDocente == 0 ? null : campoDocente,
+            ["p_resultado"] = null
+        };
+
+        string nombreSP = editando ? "sp_actualizar_alianza" : "sp_insertar_alianza";
+        var (ok, _, msg) = await Sp.EjecutarSpAsync(nombreSP, parametros);
+        
+        exito = ok;
+        mensaje = ok ? $"Alianza {(editando ? "actualizada" : "creada")} exitosamente." : $"Error: {msg}";
+
+        if (exito)
+        {
+            mostrarFormulario = false;
+            await CargarRegistros();
+        }
+    }
+
+    private async Task EliminarRegistro(Dictionary<string, object?> reg)
+    {
+        long aliadoId = long.TryParse(ObtenerValor(reg, "aliado"), out long a) ? a : 0;
+        int deptoId = int.TryParse(ObtenerValor(reg, "departamento"), out int d) ? d : 0;
+
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta alianza?");
+        if (!confirmar) return;
+
+        var parametros = new Dictionary<string, object?>
+        {
+            ["p_aliado"] = aliadoId,
+            ["p_departamento"] = deptoId,
+            ["p_resultado"] = null
+        };
+
+        var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_borrar_alianza", parametros);
+        exito = ok;
+        mensaje = ok ? "Alianza eliminada." : $"Error: {msg}";
+
+        if (exito) await CargarRegistros();
+    }
+
+    private void Cancelar() { mostrarFormulario = false; mensaje = string.Empty; }
+
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null) return val.ToString() ?? "";
+        return "";
+    }
+
+    private string FormatearFecha(string fecha)
+    {
+        if (DateTime.TryParse(fecha, out var dt)) return dt.ToString("yyyy-MM-dd");
+        return fecha;
+    }
+}
