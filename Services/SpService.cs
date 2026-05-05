@@ -2,10 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace FrontBlazor_AppiGenericaCsharp.Services
-
 {
-    // Servicio para ejecutar stored procedures via la API.
-    // Se inyecta en las paginas Blazor con @inject SpService Sp
     public class SpService
     {
         private readonly HttpClient _http;
@@ -20,16 +17,11 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
             _http = http;
         }
 
-        // ──────────────────────────────────────────────
-        // EJECUTAR SP: POST /api/procedimientos/ejecutarsp
-        // Envia nombreSP + parametros y devuelve resultados
-        // ──────────────────────────────────────────────
         public async Task<(bool exito, List<Dictionary<string, object?>> resultados, string mensaje)>
             EjecutarSpAsync(string nombreSP, Dictionary<string, object?>? parametros = null)
         {
             try
             {
-                // Armar el payload: { "nombreSP": "...", ...parametros }
                 var payload = new Dictionary<string, object?> { ["nombreSP"] = nombreSP };
                 if (parametros != null)
                 {
@@ -48,17 +40,14 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
 
                 if (!respuesta.IsSuccessStatusCode)
                 {
-                    // Intentar obtener detalle del error
                     string detalle = contenido.TryGetProperty("detalle", out JsonElement det)
                         ? det.GetString() ?? mensaje
                         : mensaje;
                     return (false, new(), detalle);
                 }
 
-                // Extraer resultados
                 var resultados = new List<Dictionary<string, object?>>();
 
-                // La API devuelve { Resultados: [...], Total: N, Mensaje: "..." }
                 JsonElement datosArray;
                 if (contenido.TryGetProperty("resultados", out datosArray) ||
                     contenido.TryGetProperty("Resultados", out datosArray))
@@ -77,7 +66,6 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
             }
         }
 
-        // Convierte JsonElement array a lista de diccionarios
         private List<Dictionary<string, object?>> ConvertirDatos(JsonElement datos)
         {
             var lista = new List<Dictionary<string, object?>>();
