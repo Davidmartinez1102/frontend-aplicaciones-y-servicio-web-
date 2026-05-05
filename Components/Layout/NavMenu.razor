@@ -1,127 +1,295 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">CRUD Facturas</a>
+@inject NavigationManager Nav
+@implements IDisposable
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap');
+
+    .navbar-toggler { display: none !important; }
+
+    :root {
+        --jade:       #2ecc8f;
+        --jade-dim:   #1a9e6a;
+        --jade-glow:  rgba(46,204,143,.13);
+        --sapphire:   #4ea8de;
+        --bg-900:     #0d1117;
+        --bg-800:     #161b22;
+        --bg-700:     #1c2230;
+        --bg-600:     #243040;
+        --border:     rgba(255,255,255,.07);
+        --text-hi:    #e6edf3;
+        --text-mid:   #8b949e;
+        --text-lo:    #3d4450;
+        --radius-sm:  8px;
+        --transition: .18s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* ── Sidebar shell ── */
+    .sidebar {
+        font-family: 'DM Sans', sans-serif;
+        background: var(--bg-800);
+        border-right: 1px solid var(--border);
+        width: 260px;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* ── Brand ── */
+    .nav-brand {
+        padding: 20px 18px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        text-decoration: none !important;
+        flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+    }
+    .nav-brand::after {
+        content: '';
+        position: absolute;
+        top: -30px; right: -30px;
+        width: 100px; height: 100px;
+        background: radial-gradient(circle, var(--jade-glow) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .brand-icon {
+        width: 34px; height: 34px;
+        background: linear-gradient(135deg, var(--jade) 0%, var(--sapphire) 100%);
+        border-radius: 9px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; flex-shrink: 0;
+        box-shadow: 0 2px 12px rgba(46,204,143,.28);
+    }
+    .brand-text { display: flex; flex-direction: column; gap: 2px; }
+    .brand-name {
+        font-family: 'Playfair Display', serif;
+        font-size: .92rem; font-weight: 700;
+        color: var(--text-hi); line-height: 1;
+    }
+    .brand-sub {
+        font-size: .65rem; color: var(--text-mid);
+        font-weight: 300; letter-spacing: .2px;
+    }
+
+    /* ── Scroll area ── */
+    .nav-scroll {
+        overflow-y: auto; flex: 1;
+        padding: 10px 0 18px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-600) transparent;
+    }
+    .nav-scroll::-webkit-scrollbar { width: 3px; }
+    .nav-scroll::-webkit-scrollbar-track { background: transparent; }
+    .nav-scroll::-webkit-scrollbar-thumb { background: var(--bg-600); border-radius: 3px; }
+
+    /* ── Section labels ── */
+    .nav-section {
+        padding: 14px 18px 5px;
+        font-size: .6rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 1.8px;
+        color: var(--text-lo);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .nav-section::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .nav-section:first-child { padding-top: 6px; }
+
+    /* ── Nav items ── */
+    .nav-item { padding: 0 8px; margin-bottom: 1px; }
+
+    .nav-link {
+        display: flex !important; align-items: center;
+        gap: 8px; padding: 8px 11px !important;
+        border-radius: var(--radius-sm) !important;
+        color: var(--text-mid) !important;
+        font-size: .8rem !important; font-weight: 400 !important;
+        text-decoration: none !important;
+        transition: all var(--transition) !important;
+        border: 1px solid transparent !important;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .nav-link:hover {
+        background: var(--bg-700) !important;
+        color: var(--text-hi) !important;
+    }
+    .nav-link.active {
+        background: var(--jade-glow) !important;
+        color: var(--jade) !important;
+        font-weight: 500 !important;
+        border-color: rgba(46,204,143,.18) !important;
+    }
+
+    .nav-icon {
+        font-size: .88rem; width: 17px;
+        text-align: center; flex-shrink: 0; opacity: .72;
+    }
+    .nav-link.active .nav-icon { opacity: 1; }
+
+    .nav-badge {
+        margin-left: auto;
+        font-size: .6rem; padding: 2px 7px; border-radius: 20px;
+        background: linear-gradient(135deg, var(--jade) 0%, var(--sapphire) 100%);
+        color: #0d1117; font-weight: 700; flex-shrink: 0; letter-spacing: .2px;
+    }
+
+    /* ── Footer ── */
+    .nav-footer {
+        padding: 12px 18px;
+        border-top: 1px solid var(--border);
+        display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .nav-footer-avatar {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: var(--bg-600);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .8rem; border: 1px solid var(--border);
+    }
+    .nav-footer-text { font-size: .72rem; color: var(--text-mid); line-height: 1.3; }
+    .nav-footer-text strong { color: var(--text-hi); display: block; font-size: .77rem; }
+
+    /* ── Mobile ── */
+    @@media (max-width: 640px) {
+        .navbar-toggler {
+            display: flex !important;
+            position: fixed; top: 10px; left: 10px; z-index: 1000;
+            background: var(--bg-800);
+            border: 1px solid var(--border);
+            border-radius: 8px; width: 36px; height: 36px;
+            align-items: center; justify-content: center;
+            cursor: pointer; color: var(--text-mid);
+            appearance: none;
+        }
+        .sidebar {
+            position: fixed; z-index: 999;
+            transform: translateX(-100%);
+            transition: transform .25s ease;
+        }
+        .navbar-toggler:checked ~ .sidebar { transform: translateX(0); }
+    }
+</style>
+
+<a class="nav-brand" href="">
+    <div class="brand-icon">🎓</div>
+    <div class="brand-text">
+        <span class="brand-name">AcademiApp</span>
+        <span class="brand-sub">Sistema de Gestión</span>
+    </div>
+</a>
+
+<div class="nav-scroll">
+
+    <div class="nav-section">Base</div>
+
+    <div class="nav-item">
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <span class="nav-icon">🏠</span> Inicio
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="universidad">
+            <span class="nav-icon">🏛</span> Universidad
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="aliado">
+            <span class="nav-icon">🤝</span> Aliados
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="car_innovacion">
+            <span class="nav-icon">💡</span> Car. Innovación
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="area-conocimiento">
+            <span class="nav-icon">🔬</span> Área Conocimiento
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="aspecto_normativo">
+            <span class="nav-icon">📜</span> Aspecto Normativo
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="practica_estrategia">
+            <span class="nav-icon">🎯</span> Práctica Estrategia
+        </NavLink>
+    </div>
+
+    <div class="nav-section">Estructura Core</div>
+
+    <div class="nav-item">
+        <NavLink class="nav-link" href="facultad">
+            <span class="nav-icon">🏫</span> Facultades
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="dashboard-programas">
+            <span class="nav-icon">📚</span> Programas
+            <span class="nav-badge">✦ nuevo</span>
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="alianza">
+            <span class="nav-icon">🔗</span> Alianzas
+        </NavLink>
+    </div>
+
+    <div class="nav-section">Núcleo Académico</div>
+
+    <div class="nav-item">
+        <NavLink class="nav-link" href="enfoque">
+            <span class="nav-icon">🎨</span> Enfoques
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="registro-calificado">
+            <span class="nav-icon">📋</span> Registros Calificados
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="acreditacion">
+            <span class="nav-icon">🏅</span> Acreditaciones
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="activ-academica">
+            <span class="nav-icon">📖</span> Activ. Académicas
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="enfoque-rc">
+            <span class="nav-icon">↔</span> Enfoque ↔ RC
+        </NavLink>
+    </div>
+    <div class="nav-item">
+        <NavLink class="nav-link" href="aa-rc">
+            <span class="nav-icon">↔</span> Actividad ↔ RC
+        </NavLink>
+    </div>
+
+    <div class="nav-section">Docentes</div>
+
+    <div class="nav-item">
+        <NavLink class="nav-link" href="docente-departamento">
+            <span class="nav-icon">👨‍🏫</span> Docente ↔ Depto.
+        </NavLink>
+    </div>
+
+</div>
+
+<div class="nav-footer">
+    <div class="nav-footer-avatar">⚙</div>
+    <div class="nav-footer-text">
+        <strong>Sistema</strong>
+        Gestión Académica v2
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        @* ──── TABLAS BASE ──── *@
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="universidad">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Universidad
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="aliado">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Aliados
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="car_innovacion">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Car Innovación
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="area-conocimiento">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Área Conocimiento
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="aspecto_normativo">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Aspecto Normativo
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="practica_estrategia">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Práctica Estrategia
-            </NavLink>
-        </div>
-
-        @* ──── DAVID: Estructura Core ──── *@
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="facultad">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Facultades
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="programa">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Programas
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="alianza">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Alianzas
-            </NavLink>
-        </div>
-
-        @* ──── OLMAN: Núcleo Académico ──── *@
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="enfoque">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Enfoques
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="registro-calificado">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Registros Calificados
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="acreditacion">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Acreditaciones
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="activ-academica">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Actividades Académicas
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="enfoque-rc">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Enfoque ↔ RC
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="aa-rc">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Actividad ↔ RC
-            </NavLink>
-        </div>
-
-        @* ──── TOMÁS: Configuración Programa ──── *@
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="programa-ci">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Programa ↔ Car
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="programa-pe">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Programa ↔ PrácticaEstrategia
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="an-programa">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Aspecto Normativo ↔ Programa
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="programa-ac">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Programa ↔ Área Conocimiento
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="docente-departamento">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Docente ↔ Departamento
-            </NavLink>
-        </div>
-
-    </nav>
-</div>
+@code {
+    public void Dispose() { }
+}

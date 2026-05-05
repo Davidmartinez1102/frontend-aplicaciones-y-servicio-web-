@@ -1,0 +1,1306 @@
+@page "/dashboard-programas"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject FrontBlazor_AppiGenericaCsharp.Services.SpService Sp
+@inject IJSRuntime JS
+@using System.Text.Json
+
+<PageTitle>Dashboard Académico</PageTitle>
+
+<style>
+    /* ═══════════════════════════════════════════════
+       DESIGN SYSTEM — Academia Dashboard
+       Tema: Dark luxury con acentos jade
+    ═══════════════════════════════════════════════ */
+    @@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+    :root {
+        --jade:       #2ecc8f;
+        --jade-dim:   #1a9e6a;
+        --jade-glow:  rgba(46,204,143,.15);
+        --sapphire:   #4ea8de;
+        --amber:      #f5a623;
+        --rose:       #e05c6e;
+        --bg-900:     #0d1117;
+        --bg-800:     #161b22;
+        --bg-700:     #1c2230;
+        --bg-600:     #243040;
+        --border:     rgba(255,255,255,.07);
+        --text-hi:    #e6edf3;
+        --text-mid:   #8b949e;
+        --text-lo:    #484f58;
+        --radius:     12px;
+        --radius-sm:  8px;
+        --shadow:     0 8px 32px rgba(0,0,0,.4);
+        --transition: .2s cubic-bezier(.4,0,.2,1);
+    }
+
+    .dash-root {
+        font-family: 'DM Sans', sans-serif;
+        background: var(--bg-900);
+        color: var(--text-hi);
+        min-height: 100vh;
+        padding: 0;
+        margin: -16px;              /* reset container padding */
+    }
+
+    /* ── TOP HEADER ─────────────────────────────── */
+    .dash-header {
+        background: linear-gradient(135deg, var(--bg-800) 0%, var(--bg-700) 100%);
+        border-bottom: 1px solid var(--border);
+        padding: 28px 40px 22px;
+        display: flex;
+        align-items: flex-end;
+        gap: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    .dash-header::before {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 220px; height: 220px;
+        background: radial-gradient(circle, var(--jade-glow) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .dash-logo {
+        width: 44px; height: 44px;
+        background: linear-gradient(135deg, var(--jade) 0%, var(--sapphire) 100%);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; flex-shrink: 0;
+        box-shadow: 0 4px 16px rgba(46,204,143,.35);
+    }
+    .dash-title-block h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--text-hi);
+        letter-spacing: -.3px;
+    }
+    .dash-title-block p {
+        margin: 2px 0 0;
+        color: var(--text-mid);
+        font-size: .82rem;
+        font-weight: 300;
+    }
+
+    /* ── ALERT ──────────────────────────────────── */
+    .dash-alert {
+        margin: 16px 40px 0;
+        padding: 12px 18px;
+        border-radius: var(--radius-sm);
+        font-size: .85rem;
+        display: flex; align-items: center; gap: 10px;
+        animation: slideIn .25s ease;
+    }
+    .dash-alert.ok  { background: rgba(46,204,143,.12); border: 1px solid rgba(46,204,143,.3); color: #6ee7b7; }
+    .dash-alert.err { background: rgba(224,92,110,.12); border: 1px solid rgba(224,92,110,.3); color: #fca5a5; }
+    .dash-alert-close {
+        margin-left: auto; background: none; border: none;
+        color: inherit; cursor: pointer; opacity: .6; font-size: 1rem;
+        padding: 0 4px;
+    }
+    .dash-alert-close:hover { opacity: 1; }
+
+    /* ── MAIN LAYOUT ─────────────────────────────── */
+    .dash-body {
+        display: flex;
+        min-height: calc(100vh - 95px);
+    }
+
+    /* ── SIDEBAR TABS ────────────────────────────── */
+    .dash-sidebar {
+        width: 220px;
+        flex-shrink: 0;
+        background: var(--bg-800);
+        border-right: 1px solid var(--border);
+        padding: 24px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .dash-sidebar-label {
+        padding: 0 20px 8px;
+        font-size: .68rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text-lo);
+    }
+    .dash-tab {
+        margin: 0 12px;
+        padding: 11px 14px;
+        border-radius: var(--radius-sm);
+        border: none;
+        background: transparent;
+        color: var(--text-mid);
+        font-family: 'DM Sans', sans-serif;
+        font-size: .85rem;
+        font-weight: 400;
+        cursor: pointer;
+        text-align: left;
+        display: flex; align-items: center; gap: 10px;
+        transition: all var(--transition);
+        position: relative;
+    }
+    .dash-tab:hover { background: var(--bg-700); color: var(--text-hi); }
+    .dash-tab.active {
+        background: var(--jade-glow);
+        color: var(--jade);
+        font-weight: 500;
+        border: 1px solid rgba(46,204,143,.2);
+    }
+    .dash-tab.active::before {
+        content: '';
+        position: absolute;
+        left: -12px;
+        top: 50%; transform: translateY(-50%);
+        width: 3px; height: 60%;
+        background: var(--jade);
+        border-radius: 0 3px 3px 0;
+    }
+    .tab-icon { font-size: 1rem; width: 20px; text-align: center; }
+    .tab-badge {
+        margin-left: auto;
+        background: var(--bg-600);
+        color: var(--text-mid);
+        font-size: .68rem;
+        padding: 1px 7px;
+        border-radius: 20px;
+        min-width: 22px;
+        text-align: center;
+    }
+    .dash-tab.active .tab-badge {
+        background: rgba(46,204,143,.2);
+        color: var(--jade);
+    }
+
+    /* ── CONTENT AREA ────────────────────────────── */
+    .dash-content {
+        flex: 1;
+        padding: 32px 40px;
+        overflow-y: auto;
+        animation: fadeIn .3s ease;
+    }
+
+    /* ── SECTION HEADER ──────────────────────────── */
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+    }
+    .section-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-hi);
+        margin: 0;
+    }
+    .section-sub {
+        color: var(--text-mid);
+        font-size: .8rem;
+        margin: 3px 0 0;
+    }
+
+    /* ── BUTTONS ─────────────────────────────────── */
+    .btn-jade {
+        background: linear-gradient(135deg, var(--jade) 0%, var(--jade-dim) 100%);
+        color: #0d1117;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .83rem;
+        font-weight: 600;
+        border: none;
+        padding: 9px 18px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px;
+        transition: all var(--transition);
+        box-shadow: 0 4px 14px rgba(46,204,143,.25);
+    }
+    .btn-jade:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(46,204,143,.35); }
+    .btn-jade:active { transform: translateY(0); }
+
+    .btn-ghost {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-mid);
+        font-family: 'DM Sans', sans-serif;
+        font-size: .83rem;
+        padding: 9px 18px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all var(--transition);
+    }
+    .btn-ghost:hover { background: var(--bg-700); color: var(--text-hi); border-color: var(--text-lo); }
+
+    .btn-icon {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-mid);
+        padding: 5px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: .78rem;
+        transition: all var(--transition);
+        display: inline-flex; align-items: center; gap: 4px;
+    }
+    .btn-icon.info:hover    { background: rgba(78,168,222,.12); color: var(--sapphire); border-color: var(--sapphire); }
+    .btn-icon.warn:hover    { background: rgba(245,166,35,.12);  color: var(--amber);    border-color: var(--amber); }
+    .btn-icon.danger:hover  { background: rgba(224,92,110,.12);  color: var(--rose);     border-color: var(--rose); }
+    .btn-icon.success:hover { background: var(--jade-glow);      color: var(--jade);     border-color: var(--jade); }
+
+    .btn-add-row {
+        background: transparent;
+        border: 1px dashed var(--border);
+        color: var(--text-mid);
+        font-size: .8rem;
+        padding: 8px 16px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        width: 100%;
+        text-align: center;
+        transition: all var(--transition);
+        margin-top: 6px;
+    }
+    .btn-add-row:hover { border-color: var(--jade); color: var(--jade); background: var(--jade-glow); }
+
+    /* ── DATA TABLE ──────────────────────────────── */
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: var(--bg-800);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+    }
+    .data-table thead tr {
+        background: var(--bg-700);
+    }
+    .data-table th {
+        padding: 13px 16px;
+        text-align: left;
+        font-size: .72rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-mid);
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+    .data-table td {
+        padding: 13px 16px;
+        font-size: .85rem;
+        color: var(--text-hi);
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+    }
+    .data-table tbody tr:last-child td { border-bottom: none; }
+    .data-table tbody tr {
+        transition: background var(--transition);
+    }
+    .data-table tbody tr:hover { background: var(--bg-700); }
+
+    .cell-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: .75rem;
+        font-weight: 500;
+    }
+    .badge-jade  { background: rgba(46,204,143,.15); color: var(--jade);     border: 1px solid rgba(46,204,143,.25); }
+    .badge-blue  { background: rgba(78,168,222,.15);  color: var(--sapphire); border: 1px solid rgba(78,168,222,.25); }
+    .badge-amber { background: rgba(245,166,35,.12);  color: var(--amber);    border: 1px solid rgba(245,166,35,.25); }
+
+    .cell-actions { display: flex; gap: 6px; }
+
+    /* ── EMPTY STATE ─────────────────────────────── */
+    .empty-state {
+        text-align: center;
+        padding: 64px 0;
+        color: var(--text-lo);
+    }
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: .4; }
+    .empty-state p { font-size: .9rem; margin: 0; }
+
+    /* ── SPINNER ─────────────────────────────────── */
+    .dash-spinner {
+        display: flex; justify-content: center; align-items: center;
+        padding: 60px 0; gap: 12px; color: var(--text-mid);
+        font-size: .85rem;
+    }
+    .spinner-ring {
+        width: 28px; height: 28px;
+        border: 2px solid var(--border);
+        border-top-color: var(--jade);
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+    }
+
+    /* ── MODAL / FORM PANEL ──────────────────────── */
+    .form-panel {
+        background: var(--bg-800);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        margin-bottom: 28px;
+        overflow: hidden;
+        animation: slideDown .25s ease;
+    }
+    .form-panel-header {
+        padding: 16px 24px;
+        background: var(--bg-700);
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 10px;
+    }
+    .form-panel-header h4 {
+        margin: 0;
+        font-size: .95rem;
+        font-weight: 500;
+        color: var(--text-hi);
+    }
+    .form-panel-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--jade);
+        box-shadow: 0 0 8px var(--jade);
+    }
+    .form-panel-body { padding: 24px; }
+
+    .form-row { display: grid; gap: 16px; margin-bottom: 16px; }
+    .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+    .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label {
+        font-size: .75rem;
+        font-weight: 500;
+        color: var(--text-mid);
+        text-transform: uppercase;
+        letter-spacing: .6px;
+    }
+    .form-input, .form-select {
+        background: var(--bg-900) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius-sm) !important;
+        color: var(--text-hi) !important;
+        padding: 9px 13px !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-size: .85rem !important;
+        transition: border-color var(--transition) !important;
+        outline: none !important;
+    }
+    .form-input:focus, .form-select:focus {
+        border-color: var(--jade) !important;
+        box-shadow: 0 0 0 3px var(--jade-glow) !important;
+    }
+    .form-select option { background: var(--bg-700); }
+
+    /* ── DETAIL CARD ─────────────────────────────── */
+    .detail-card {
+        background: var(--bg-800);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .detail-card-header {
+        padding: 16px 24px;
+        background: linear-gradient(90deg, var(--jade-glow), transparent);
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: .95rem;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .detail-card-body { padding: 20px 24px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .detail-field label {
+        display: block; font-size: .72rem; color: var(--text-mid);
+        text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px;
+    }
+    .detail-field span { font-size: .9rem; color: var(--text-hi); }
+
+    /* ── SUB-DETAIL SECTION (Premios / Pasantías) ── */
+    .sub-section-title {
+        font-size: .82rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 12px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .sub-list-item {
+        padding: 10px 14px;
+        background: var(--bg-700);
+        border-radius: var(--radius-sm);
+        margin-bottom: 8px;
+        font-size: .83rem;
+        display: flex; align-items: center; gap: 10px;
+        border: 1px solid var(--border);
+    }
+
+    /* ── DETAIL ROW (inline sub-rows) ────────────── */
+    .detail-row-grid {
+        background: var(--bg-700);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        display: grid;
+        gap: 10px;
+        animation: slideIn .2s ease;
+    }
+    .detail-row-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr auto; align-items: end; }
+    .detail-row-grid.cols-5 { grid-template-columns: 1fr 1fr 1fr 1fr auto; align-items: end; }
+
+    /* ── FORM ACTIONS ────────────────────────────── */
+    .form-actions {
+        display: flex; gap: 10px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        margin-top: 20px;
+    }
+
+    /* ── SECTION SEPARATOR ───────────────────────── */
+    .sub-section-sep {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 24px 0;
+    }
+
+    /* ── ANIMATIONS ──────────────────────────────── */
+    @@keyframes fadeIn    { from { opacity:0; transform:translateY(8px);  } to { opacity:1; transform:translateY(0);  } }
+    @@keyframes slideIn   { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+    @@keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+    @@keyframes spin      { to { transform:rotate(360deg); } }
+</style>
+
+<div class="dash-root">
+
+    <!-- ══ HEADER ══════════════════════════════════ -->
+    <div class="dash-header">
+        <div class="dash-logo">🎓</div>
+        <div class="dash-title-block">
+            <h1>Gestión Académica</h1>
+            <p>Dashboard unificado · Programas & Relaciones</p>
+        </div>
+    </div>
+
+    <!-- ══ ALERT ═══════════════════════════════════ -->
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="dash-alert @(exito ? "ok" : "err")">
+            <span>@(exito ? "✓" : "✕")</span>
+            <span>@mensaje</span>
+            <button class="dash-alert-close" @onclick="() => mensaje = string.Empty">✕</button>
+        </div>
+    }
+
+    <div class="dash-body">
+
+        <!-- ══ SIDEBAR ══════════════════════════════ -->
+        <nav class="dash-sidebar">
+            <div class="dash-sidebar-label">Módulos</div>
+
+            <button class="dash-tab @(tabActiva == "programas" ? "active" : "")"
+                    @onclick='() => CambiarTab("programas")'>
+                <span class="tab-icon">📚</span>
+                Programas
+                <span class="tab-badge">@programas.Count</span>
+            </button>
+
+            <button class="dash-tab @(tabActiva == "an" ? "active" : "")"
+                    @onclick='() => CambiarTab("an")'>
+                <span class="tab-icon">📜</span>
+                Asp. Normativo
+                <span class="tab-badge">@registrosAN.Count</span>
+            </button>
+
+            <button class="dash-tab @(tabActiva == "pe" ? "active" : "")"
+                    @onclick='() => CambiarTab("pe")'>
+                <span class="tab-icon">🎯</span>
+                Práct. Estrategia
+                <span class="tab-badge">@registrosPE.Count</span>
+            </button>
+
+            <button class="dash-tab @(tabActiva == "ac" ? "active" : "")"
+                    @onclick='() => CambiarTab("ac")'>
+                <span class="tab-icon">🔬</span>
+                Área Conocimiento
+                <span class="tab-badge">@registrosAC.Count</span>
+            </button>
+
+            <button class="dash-tab @(tabActiva == "ci" ? "active" : "")"
+                    @onclick='() => CambiarTab("ci")'>
+                <span class="tab-icon">💡</span>
+                Car. Innovación
+                <span class="tab-badge">@registrosCI.Count</span>
+            </button>
+        </nav>
+
+        <!-- ══ CONTENT ══════════════════════════════ -->
+        <main class="dash-content">
+
+            @* ─────────────────────────────────────── *@
+            @* TAB 1 · PROGRAMAS                       *@
+            @* ─────────────────────────────────────── *@
+            @if (tabActiva == "programas")
+            {
+                @if (vistaProgramas == "listar")
+                {
+                    <div class="section-header">
+                        <div>
+                            <h2 class="section-title">Programas Académicos</h2>
+                            <p class="section-sub">@programas.Count registro(s) activo(s)</p>
+                        </div>
+                        <button class="btn-jade" @onclick="MostrarFormularioNueva">
+                            ＋ Nuevo Programa
+                        </button>
+                    </div>
+
+                    @if (cargandoProgramas)
+                    {
+                        <div class="dash-spinner"><div class="spinner-ring"></div> Cargando...</div>
+                    }
+                    else if (programas.Any())
+                    {
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Nombre</th>
+                                    <th>Nivel</th>
+                                    <th>Ciudad</th>
+                                    <th>Premios</th>
+                                    <th>Pasantías</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in programas)
+                                {
+                                    <tr>
+                                        <td><span style="color:var(--text-lo);font-size:.78rem;">@ObtenerValor(p,"id")</span></td>
+                                        <td><strong>@ObtenerValor(p,"nombre")</strong></td>
+                                        <td>@ObtenerValor(p,"nivel")</td>
+                                        <td>@ObtenerValor(p,"ciudad")</td>
+                                        <td><span class="cell-badge badge-jade">🏆 @ObtenerDetalles(p,"premios").Count</span></td>
+                                        <td><span class="cell-badge badge-blue">💼 @ObtenerDetalles(p,"pasantias").Count</span></td>
+                                        <td>
+                                            <div class="cell-actions">
+                                                <button class="btn-icon info"   @onclick="() => VerPrograma(p)">👁 Ver</button>
+                                                <button class="btn-icon warn"   @onclick="() => EditarPrograma(p)">✏ Editar</button>
+                                                <button class="btn-icon danger" @onclick="() => EliminarPrograma(p)">🗑</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <div class="empty-icon">📭</div>
+                            <p>No hay programas registrados.</p>
+                        </div>
+                    }
+                }
+
+                @* ── DETALLE ── *@
+                @if (vistaProgramas == "ver" && programaActual != null)
+                {
+                    <div class="section-header">
+                        <div>
+                            <h2 class="section-title">@ObtenerValor(programaActual,"nombre")</h2>
+                            <p class="section-sub">Detalle del programa · ID @ObtenerValor(programaActual,"id")</p>
+                        </div>
+                        <div style="display:flex;gap:10px;">
+                            <button class="btn-ghost" @onclick='() => vistaProgramas = "listar"'>← Volver</button>
+                            <button class="btn-jade"  @onclick='() => EditarPrograma(programaActual)'>✏ Editar</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <div class="detail-card-header">📋 Información General</div>
+                        <div class="detail-card-body">
+                            <div class="detail-grid">
+                                <div class="detail-field"><label>Nivel</label>     <span>@ObtenerValor(programaActual,"nivel")</span></div>
+                                <div class="detail-field"><label>Tipo</label>      <span>@ObtenerValor(programaActual,"tipo")</span></div>
+                                <div class="detail-field"><label>Ciudad</label>    <span>@ObtenerValor(programaActual,"ciudad")</span></div>
+                                <div class="detail-field"><label>Creación</label>  <span>@ObtenerValor(programaActual,"fecha_creacion")</span></div>
+                                <div class="detail-field"><label>Cohortes</label>  <span>@ObtenerValor(programaActual,"numero_cohortes")</span></div>
+                                <div class="detail-field"><label>Graduados</label> <span>@ObtenerValor(programaActual,"cant_graduados")</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                        <div class="detail-card">
+                            <div class="detail-card-header">🏆 Premios</div>
+                            <div class="detail-card-body">
+                                @if (ObtenerDetalles(programaActual,"premios").Any())
+                                {
+                                    @foreach (var pr in ObtenerDetalles(programaActual,"premios"))
+                                    {
+                                        <div class="sub-list-item">
+                                            <span class="cell-badge badge-jade" style="flex-shrink:0">🏅</span>
+                                            <span><strong>@ObtenerValor(pr,"nombre")</strong> · @ObtenerValor(pr,"entidad_otorgante") (@ObtenerValor(pr,"pais"))</span>
+                                        </div>
+                                    }
+                                }
+                                else { <p style="color:var(--text-lo);font-size:.83rem;">Sin premios.</p> }
+                            </div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-card-header">💼 Pasantías</div>
+                            <div class="detail-card-body">
+                                @if (ObtenerDetalles(programaActual,"pasantias").Any())
+                                {
+                                    @foreach (var pa in ObtenerDetalles(programaActual,"pasantias"))
+                                    {
+                                        <div class="sub-list-item">
+                                            <span class="cell-badge badge-blue" style="flex-shrink:0">🌐</span>
+                                            <span><strong>@ObtenerValor(pa,"nombre")</strong> · @ObtenerValor(pa,"empresa") (@ObtenerValor(pa,"pais"))</span>
+                                        </div>
+                                    }
+                                }
+                                else { <p style="color:var(--text-lo);font-size:.83rem;">Sin pasantías.</p> }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* ── FORMULARIO CREAR / EDITAR ── *@
+                @if (vistaProgramas == "formulario")
+                {
+                    <div class="section-header">
+                        <div>
+                            <h2 class="section-title">@(editando ? $"Editar Programa #{idEditar}" : "Nuevo Programa")</h2>
+                            <p class="section-sub">@(editando ? "Actualiza los campos y guarda" : "Completa los datos del programa académico")</p>
+                        </div>
+                        <button class="btn-ghost" @onclick='() => vistaProgramas = "listar"'>← Cancelar</button>
+                    </div>
+
+                    <div class="form-panel">
+                        <div class="form-panel-header">
+                            <div class="form-panel-dot"></div>
+                            <h4>Datos Básicos</h4>
+                        </div>
+                        <div class="form-panel-body">
+                            <div class="form-row cols-3">
+                                <div class="form-group"><label class="form-label">Nombre del Programa</label>
+                                    <input class="form-input" @bind="c_nombre" /></div>
+                                <div class="form-group"><label class="form-label">Nivel</label>
+                                    <input class="form-input" @bind="c_nivel" /></div>
+                                <div class="form-group"><label class="form-label">Tipo</label>
+                                    <input class="form-input" @bind="c_tipo" /></div>
+                            </div>
+                            <div class="form-row cols-3">
+                                <div class="form-group"><label class="form-label">Facultad</label>
+                                    <select class="form-select" @bind="c_facultad">
+                                        <option value="0">-- Seleccione --</option>
+                                        @foreach (var fac in listaFacultades)
+                                        { <option value="@fac["id"]">@fac["nombre"]</option> }
+                                    </select>
+                                </div>
+                                <div class="form-group"><label class="form-label">Ciudad</label>
+                                    <input class="form-input" @bind="c_ciudad" /></div>
+                                <div class="form-group"><label class="form-label">Fecha de Creación</label>
+                                    <input class="form-input" @bind="c_fecha_creacion" /></div>
+                            </div>
+                            <div class="form-row cols-4">
+                                <div class="form-group"><label class="form-label">Fecha de Cierre</label>
+                                    <input class="form-input" @bind="c_fecha_cierre" /></div>
+                                <div class="form-group"><label class="form-label">Nº Cohortes</label>
+                                    <input class="form-input" @bind="c_numero_cohortes" /></div>
+                                <div class="form-group"><label class="form-label">Cant. Graduados</label>
+                                    <input class="form-input" @bind="c_cant_graduados" /></div>
+                                <div class="form-group"><label class="form-label">Última Actualización</label>
+                                    <input class="form-input" @bind="c_fecha_actualizacion" /></div>
+                            </div>
+
+                            <hr class="sub-section-sep" />
+
+                            <!-- PREMIOS -->
+                            <div class="sub-section-title" style="color:var(--jade)">🏆 Premios del Programa</div>
+                            @for (int i = 0; i < filasPremios.Count; i++)
+                            {
+                                var idx = i;
+                                <div class="detail-row-grid cols-4">
+                                    <div class="form-group"><label class="form-label">Nombre Premio</label>
+                                        <input class="form-input" @bind="filasPremios[idx].Nombre" /></div>
+                                    <div class="form-group"><label class="form-label">Entidad Otorgante</label>
+                                        <input class="form-input" @bind="filasPremios[idx].EntidadOtorgante" /></div>
+                                    <div class="form-group"><label class="form-label">País</label>
+                                        <input class="form-input" @bind="filasPremios[idx].Pais" /></div>
+                                    <div class="form-group"><label class="form-label">Fecha</label>
+                                        <input class="form-input" type="date" @bind="filasPremios[idx].Fecha" /></div>
+                                    <div style="display:flex;align-items:flex-end;">
+                                        <button class="btn-icon danger" style="width:100%;justify-content:center;"
+                                                @onclick="() => QuitarPremio(idx)">✕</button>
+                                    </div>
+                                </div>
+                            }
+                            <button class="btn-add-row" @onclick="AgregarPremio">＋ Agregar Premio</button>
+
+                            <hr class="sub-section-sep" />
+
+                            <!-- PASANTÍAS -->
+                            <div class="sub-section-title" style="color:var(--sapphire)">💼 Pasantías del Programa</div>
+                            @for (int i = 0; i < filasPasantias.Count; i++)
+                            {
+                                var idx = i;
+                                <div class="detail-row-grid cols-4">
+                                    <div class="form-group"><label class="form-label">Nombre Pasantía</label>
+                                        <input class="form-input" @bind="filasPasantias[idx].Nombre" /></div>
+                                    <div class="form-group"><label class="form-label">Empresa</label>
+                                        <input class="form-input" @bind="filasPasantias[idx].Empresa" /></div>
+                                    <div class="form-group"><label class="form-label">País</label>
+                                        <input class="form-input" @bind="filasPasantias[idx].Pais" /></div>
+                                    <div class="form-group"><label class="form-label">Descripción</label>
+                                        <input class="form-input" @bind="filasPasantias[idx].Descripcion" /></div>
+                                    <div style="display:flex;align-items:flex-end;">
+                                        <button class="btn-icon danger" style="width:100%;justify-content:center;"
+                                                @onclick="() => QuitarPasantia(idx)">✕</button>
+                                    </div>
+                                </div>
+                            }
+                            <button class="btn-add-row" @onclick="AgregarPasantia">＋ Agregar Pasantía</button>
+
+                            <div class="form-actions">
+                                <button class="btn-jade" @onclick="GuardarPrograma">💾 Guardar Todo</button>
+                                <button class="btn-ghost" @onclick='() => vistaProgramas = "listar"'>Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+
+            @* ─────────────────────────────────────── *@
+            @* TABS 2-5 · RELACIONES (patrón genérico) *@
+            @* ─────────────────────────────────────── *@
+
+            @if (tabActiva == "an")
+            {
+                <RelacionTab Titulo="Aspecto Normativo ↔ Programa"
+                             Subtitulo="Vincula normativas con programas académicos"
+                             Columna1="Aspecto Normativo" Columna2="Programa"
+                             Registros="registrosAN"
+                             Cargando="cargandoAN"
+                             MostrarFormulario="mostrarFormAN"
+                             OnNuevo="() => { campoAN_Asp=0; campoAN_Prog=0; mostrarFormAN=true; mensaje=string.Empty; }"
+                             OnCancelar="() => mostrarFormAN = false">
+                    <Formulario>
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label class="form-label">Aspecto Normativo</label>
+                                <select class="form-select" @bind="campoAN_Asp">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var a in aspectos)
+                                    { <option value="@ObtenerValor(a,"id")">@ObtenerEtiquetaAspecto(a)</option> }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Programa</label>
+                                <select class="form-select" @bind="campoAN_Prog">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var p in programas)
+                                    { <option value="@ObtenerValor(p,"id")">@ObtenerValor(p,"nombre")</option> }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-jade" @onclick="GuardarAN">💾 Guardar</button>
+                            <button class="btn-ghost" @onclick="() => mostrarFormAN = false">Cancelar</button>
+                        </div>
+                    </Formulario>
+                    <Filas>
+                        @foreach (var reg in registrosAN)
+                        {
+                            <tr>
+                                <td>@ObtenerEtiquetaAspectoById(ObtenerValor(reg,"aspecto_normativo"))</td>
+                                <td>@ObtenerNombreEnLista(programas,"id",ObtenerValor(reg,"programa"),"nombre")</td>
+                                <td><button class="btn-icon danger" @onclick="() => EliminarAN(reg)">🗑 Eliminar</button></td>
+                            </tr>
+                        }
+                    </Filas>
+                </RelacionTab>
+            }
+
+            @if (tabActiva == "pe")
+            {
+                <RelacionTab Titulo="Programa ↔ Práctica Estrategia"
+                             Subtitulo="Asocia programas con prácticas estratégicas"
+                             Columna1="Programa" Columna2="Práctica Estrategia"
+                             Registros="registrosPE"
+                             Cargando="cargandoPE"
+                             MostrarFormulario="mostrarFormPE"
+                             OnNuevo="() => { campoPE_Prog=0; campoPE_Prac=0; mostrarFormPE=true; mensaje=string.Empty; }"
+                             OnCancelar="() => mostrarFormPE = false">
+                    <Formulario>
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label class="form-label">Programa</label>
+                                <select class="form-select" @bind="campoPE_Prog">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var p in programas)
+                                    { <option value="@ObtenerValor(p,"id")">@ObtenerValor(p,"nombre")</option> }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Práctica Estrategia</label>
+                                <select class="form-select" @bind="campoPE_Prac">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var pe in practicasEstrategia)
+                                    { <option value="@ObtenerValor(pe,"id")">@ObtenerValor(pe,"nombre")</option> }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-jade" @onclick="GuardarPE">💾 Guardar</button>
+                            <button class="btn-ghost" @onclick="() => mostrarFormPE = false">Cancelar</button>
+                        </div>
+                    </Formulario>
+                    <Filas>
+                        @foreach (var reg in registrosPE)
+                        {
+                            <tr>
+                                <td>@ObtenerNombreEnLista(programas,"id",ObtenerValor(reg,"programa"),"nombre")</td>
+                                <td>@ObtenerNombreEnLista(practicasEstrategia,"id",ObtenerValor(reg,"practica_estrategia"),"nombre")</td>
+                                <td><button class="btn-icon danger" @onclick="() => EliminarPE(reg)">🗑 Eliminar</button></td>
+                            </tr>
+                        }
+                    </Filas>
+                </RelacionTab>
+            }
+
+            @if (tabActiva == "ac")
+            {
+                <RelacionTab Titulo="Programa ↔ Área de Conocimiento"
+                             Subtitulo="Clasifica programas por área disciplinar"
+                             Columna1="Programa" Columna2="Área de Conocimiento"
+                             Registros="registrosAC"
+                             Cargando="cargandoAC"
+                             MostrarFormulario="mostrarFormAC"
+                             OnNuevo="() => { campoAC_Prog=0; campoAC_Area=0; mostrarFormAC=true; mensaje=string.Empty; }"
+                             OnCancelar="() => mostrarFormAC = false">
+                    <Formulario>
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label class="form-label">Programa</label>
+                                <select class="form-select" @bind="campoAC_Prog">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var p in programas)
+                                    { <option value="@ObtenerValor(p,"id")">@ObtenerValor(p,"nombre")</option> }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Área de Conocimiento</label>
+                                <select class="form-select" @bind="campoAC_Area">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var a in areas)
+                                    { <option value="@ObtenerValor(a,"id")">@ObtenerEtiquetaArea(a)</option> }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-jade" @onclick="GuardarAC">💾 Guardar</button>
+                            <button class="btn-ghost" @onclick="() => mostrarFormAC = false">Cancelar</button>
+                        </div>
+                    </Formulario>
+                    <Filas>
+                        @foreach (var reg in registrosAC)
+                        {
+                            <tr>
+                                <td>@ObtenerNombreEnLista(programas,"id",ObtenerValor(reg,"programa"),"nombre")</td>
+                                <td>@ObtenerEtiquetaAreaById(ObtenerValor(reg,"area_conocimiento"))</td>
+                                <td><button class="btn-icon danger" @onclick="() => EliminarAC(reg)">🗑 Eliminar</button></td>
+                            </tr>
+                        }
+                    </Filas>
+                </RelacionTab>
+            }
+
+            @if (tabActiva == "ci")
+            {
+                <RelacionTab Titulo="Programa ↔ Característica de Innovación"
+                             Subtitulo="Asocia características innovadoras a programas"
+                             Columna1="Programa" Columna2="Característica Innovación"
+                             Registros="registrosCI"
+                             Cargando="cargandoCI"
+                             MostrarFormulario="mostrarFormCI"
+                             OnNuevo="() => { campoCI_Prog=0; campoCI_Car=0; mostrarFormCI=true; mensaje=string.Empty; }"
+                             OnCancelar="() => mostrarFormCI = false">
+                    <Formulario>
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label class="form-label">Programa</label>
+                                <select class="form-select" @bind="campoCI_Prog">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var p in programas)
+                                    { <option value="@ObtenerValor(p,"id")">@ObtenerValor(p,"nombre")</option> }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Característica de Innovación</label>
+                                <select class="form-select" @bind="campoCI_Car">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var c in carInnovaciones)
+                                    { <option value="@ObtenerValor(c,"id")">@ObtenerValor(c,"nombre")</option> }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-jade" @onclick="GuardarCI">💾 Guardar</button>
+                            <button class="btn-ghost" @onclick="() => mostrarFormCI = false">Cancelar</button>
+                        </div>
+                    </Formulario>
+                    <Filas>
+                        @foreach (var reg in registrosCI)
+                        {
+                            <tr>
+                                <td>@ObtenerNombreEnLista(programas,"id",ObtenerValor(reg,"programa"),"nombre")</td>
+                                <td>@ObtenerNombreEnLista(carInnovaciones,"id",ObtenerValor(reg,"car_innovacion"),"nombre")</td>
+                                <td><button class="btn-icon danger" @onclick="() => EliminarCI(reg)">🗑 Eliminar</button></td>
+                            </tr>
+                        }
+                    </Filas>
+                </RelacionTab>
+            }
+
+        </main>
+    </div>
+</div>
+
+@code {
+
+    // ══ ESTADO GLOBAL ════════════════════════════════════════
+    private string tabActiva     = "programas";
+    private string mensaje       = string.Empty;
+    private bool   exito         = false;
+
+    // ── LISTAS MAESTRAS (compartidas entre tabs) ─────────────
+    private List<Dictionary<string, object?>> programas         = new();
+    private List<Dictionary<string, object?>> listaFacultades   = new();
+    private List<Dictionary<string, object?>> aspectos          = new();
+    private List<Dictionary<string, object?>> practicasEstrategia = new();
+    private List<Dictionary<string, object?>> areas             = new();
+    private List<Dictionary<string, object?>> carInnovaciones   = new();
+
+    // ══ TAB PROGRAMAS ════════════════════════════════════════
+    private string  vistaProgramas       = "listar";
+    private bool    cargandoProgramas    = true;
+    private bool    editando             = false;
+    private int     idEditar             = 0;
+    private Dictionary<string, object?>? programaActual;
+
+    private string c_nombre = "", c_tipo = "", c_nivel = "", c_fecha_creacion = "",
+                   c_fecha_cierre = "", c_numero_cohortes = "", c_cant_graduados = "",
+                   c_fecha_actualizacion = "", c_ciudad = "";
+    private int c_facultad = 0;
+
+    private class PremioFila {
+        public string   Nombre = "", Descripcion = "N/A", EntidadOtorgante = "", Pais = "";
+        public DateTime Fecha = DateTime.Today;
+    }
+    private class PasantiaFila {
+        public string Nombre = "", Pais = "", Empresa = "", Descripcion = "N/A";
+    }
+    private List<PremioFila>   filasPremios   = new();
+    private List<PasantiaFila> filasPasantias = new();
+
+    // ══ TAB AN ═══════════════════════════════════════════════
+    private List<Dictionary<string, object?>> registrosAN = new();
+    private bool cargandoAN = true, mostrarFormAN = false;
+    private int  campoAN_Asp = 0, campoAN_Prog = 0;
+
+    // ══ TAB PE ═══════════════════════════════════════════════
+    private List<Dictionary<string, object?>> registrosPE = new();
+    private bool cargandoPE = true, mostrarFormPE = false;
+    private int  campoPE_Prog = 0, campoPE_Prac = 0;
+
+    // ══ TAB AC ═══════════════════════════════════════════════
+    private List<Dictionary<string, object?>> registrosAC = new();
+    private bool cargandoAC = true, mostrarFormAC = false;
+    private int  campoAC_Prog = 0, campoAC_Area = 0;
+
+    // ══ TAB CI ═══════════════════════════════════════════════
+    private List<Dictionary<string, object?>> registrosCI = new();
+    private bool cargandoCI = true, mostrarFormCI = false;
+    private int  campoCI_Prog = 0, campoCI_Car = 0;
+
+    // ══ INIT ═════════════════════════════════════════════════
+    protected override async Task OnInitializedAsync()
+    {
+        listaFacultades      = await Api.ListarAsync("facultad")           ?? new();
+        aspectos             = await Api.ListarAsync("aspecto_normativo")  ?? new();
+        practicasEstrategia  = await Api.ListarAsync("practica_estrategia") ?? new();
+        areas                = await Api.ListarAsync("area_conocimiento")  ?? new();
+        carInnovaciones      = await Api.ListarAsync("car_innovacion")     ?? new();
+
+        await Task.WhenAll(
+            CargarProgramas(),
+            CargarAN(), CargarPE(), CargarAC(), CargarCI()
+        );
+    }
+
+    private void CambiarTab(string tab)
+    {
+        tabActiva       = tab;
+        vistaProgramas  = "listar";
+        mensaje         = string.Empty;
+    }
+
+    // ══ CARGA ════════════════════════════════════════════════
+    private async Task CargarProgramas()
+    {
+        cargandoProgramas = true;
+        var p = new Dictionary<string, object?> { ["p_resultado"] = null };
+        var (ok, resultados, _) = await Sp.EjecutarSpAsync("sp_listar_programas_completos", p);
+        if (ok && resultados.Count > 0)
+        {
+            var json = resultados[0].Values.FirstOrDefault()?.ToString();
+            if (!string.IsNullOrEmpty(json))
+                try { programas = ParsearJsonArray(json); } catch { programas = resultados; }
+        }
+        cargandoProgramas = false;
+    }
+    private async Task CargarAN() { cargandoAN = true; registrosAN = await Api.ListarAsync("an_programa") ?? new(); cargandoAN = false; }
+    private async Task CargarPE() { cargandoPE = true; registrosPE = await Api.ListarAsync("programa_pe") ?? new(); cargandoPE = false; }
+    private async Task CargarAC() { cargandoAC = true; registrosAC = await Api.ListarAsync("programa_ac") ?? new(); cargandoAC = false; }
+    private async Task CargarCI() { cargandoCI = true; registrosCI = await Api.ListarAsync("programa_ci") ?? new(); cargandoCI = false; }
+
+    // ══ PROGRAMAS — CRUD ════════════════════════════════════
+    private void MostrarFormularioNueva() { editando = false; LimpiarCampos(); vistaProgramas = "formulario"; }
+
+    private async Task VerPrograma(Dictionary<string, object?> p)
+    {
+        int id = int.TryParse(ObtenerValor(p,"id"), out int n) ? n : 0;
+        var (ok, resultados, _) = await Sp.EjecutarSpAsync("sp_consultar_programa_completo", new() { ["p_numero"] = id });
+        if (ok && resultados.Count > 0)
+        {
+            var json = resultados[0].Values.FirstOrDefault()?.ToString();
+            if (!string.IsNullOrEmpty(json))
+                try { programaActual = AplanarJson(json, "programa"); } catch { programaActual = p; }
+        }
+        vistaProgramas = "ver";
+    }
+
+    private void EditarPrograma(Dictionary<string, object?> p)
+    {
+        editando = true;
+        idEditar = int.TryParse(ObtenerValor(p,"id"), out int n) ? n : 0;
+        c_nombre              = ObtenerValor(p,"nombre");
+        c_tipo                = ObtenerValor(p,"tipo");
+        c_nivel               = ObtenerValor(p,"nivel");
+        c_fecha_creacion      = ObtenerValor(p,"fecha_creacion");
+        c_fecha_cierre        = ObtenerValor(p,"fecha_cierre");
+        c_numero_cohortes     = ObtenerValor(p,"numero_cohortes");
+        c_cant_graduados      = ObtenerValor(p,"cant_graduados");
+        c_fecha_actualizacion = ObtenerValor(p,"fecha_actualizacion");
+        c_ciudad              = ObtenerValor(p,"ciudad");
+        c_facultad            = int.TryParse(ObtenerValor(p,"facultad"), out int f) ? f : 0;
+        filasPremios   = ObtenerDetalles(p,"premios").Select(pr => new PremioFila {
+            Nombre = ObtenerValor(pr,"nombre"), EntidadOtorgante = ObtenerValor(pr,"entidad_otorgante"),
+            Pais   = ObtenerValor(pr,"pais"),
+            Fecha  = DateTime.TryParse(ObtenerValor(pr,"fecha"), out var dt) ? dt : DateTime.Today
+        }).ToList();
+        filasPasantias = ObtenerDetalles(p,"pasantias").Select(pa => new PasantiaFila {
+            Nombre = ObtenerValor(pa,"nombre"), Empresa = ObtenerValor(pa,"empresa"),
+            Pais   = ObtenerValor(pa,"pais"),   Descripcion = ObtenerValor(pa,"descripcion")
+        }).ToList();
+        vistaProgramas = "formulario";
+    }
+
+    private async Task GuardarPrograma()
+    {
+        var premios = filasPremios.Where(p => !string.IsNullOrEmpty(p.Nombre))
+            .Select(p => new { nombre=p.Nombre, descripcion=p.Descripcion, fecha=p.Fecha.ToString("yyyy-MM-dd"), entidad_otorgante=p.EntidadOtorgante, pais=p.Pais }).ToList();
+        var pasantias = filasPasantias.Where(p => !string.IsNullOrEmpty(p.Nombre))
+            .Select(p => new { nombre=p.Nombre, pais=p.Pais, empresa=p.Empresa, descripcion=p.Descripcion }).ToList();
+
+        var parametros = new Dictionary<string, object?> {
+            ["p_nombre"]=Str(c_nombre), ["p_tipo"]=Str(c_tipo), ["p_nivel"]=Str(c_nivel),
+            ["p_fecha_creacion"]=Str(c_fecha_creacion), ["p_fecha_cierre"]=Str(c_fecha_cierre),
+            ["p_numero_cohortes"]=Str(c_numero_cohortes), ["p_cant_graduados"]=Str(c_cant_graduados),
+            ["p_fecha_actualizacion"]=Str(c_fecha_actualizacion), ["p_ciudad"]=Str(c_ciudad),
+            ["p_facultad"]=c_facultad,
+            ["p_premios"]=premios.Any() ? JsonSerializer.Serialize(premios) : null,
+            ["p_pasantias"]=pasantias.Any() ? JsonSerializer.Serialize(pasantias) : null,
+        };
+
+        string sp = editando ? "sp_actualizar_programa_completo" : "sp_insertar_programa_completo";
+        if (editando) parametros["p_numero"] = idEditar;
+
+        var (ok, _, msg) = await Sp.EjecutarSpAsync(sp, parametros);
+        exito = ok; mensaje = ok ? (editando ? "Programa actualizado." : "Programa creado.") : $"Error: {msg}";
+        if (ok) { await CargarProgramas(); vistaProgramas = "listar"; }
+    }
+
+    private async Task EliminarPrograma(Dictionary<string, object?> p)
+    {
+        int id = int.TryParse(ObtenerValor(p,"id"), out int n) ? n : 0;
+        if (!await JS.InvokeAsync<bool>("confirm", $"¿Borrar programa {id} y todos sus detalles?")) return;
+        var (ok, _, msg) = await Sp.EjecutarSpAsync("sp_borrar_programa_completo", new() { ["p_numero"]=id });
+        exito = ok; mensaje = ok ? "Eliminado correctamente." : $"Error: {msg}";
+        if (ok) await CargarProgramas();
+    }
+
+    // ══ RELACIONES — GUARDAR / ELIMINAR ═════════════════════
+    private async Task GuardarAN()
+    {
+        if (campoAN_Asp == 0 || campoAN_Prog == 0) { exito=false; mensaje="Seleccione aspecto y programa."; return; }
+        var r = await Api.CrearAsync("an_programa", new() { ["aspecto_normativo"]=campoAN_Asp, ["programa"]=campoAN_Prog });
+        exito=r.exito; mensaje=r.mensaje;
+        if (exito) { mostrarFormAN=false; await CargarAN(); }
+    }
+    private async Task EliminarAN(Dictionary<string,object?> reg)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm","¿Eliminar esta relación?")) return;
+        var (ok,_,msg) = await Sp.EjecutarSpAsync("sp_borrar_an_programa", new() {
+            ["p_aspecto_normativo"]=int.Parse(ObtenerValor(reg,"aspecto_normativo")),
+            ["p_programa"]=int.Parse(ObtenerValor(reg,"programa")), ["p_resultado"]=null });
+        exito=ok; mensaje=ok?"Relación eliminada.":$"Error: {msg}";
+        if (ok) await CargarAN();
+    }
+
+    private async Task GuardarPE()
+    {
+        if (campoPE_Prog==0||campoPE_Prac==0) { exito=false; mensaje="Seleccione programa y práctica."; return; }
+        var r = await Api.CrearAsync("programa_pe", new() { ["programa"]=campoPE_Prog, ["practica_estrategia"]=campoPE_Prac });
+        exito=r.exito; mensaje=r.mensaje;
+        if (exito) { mostrarFormPE=false; await CargarPE(); }
+    }
+    private async Task EliminarPE(Dictionary<string,object?> reg)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm","¿Eliminar esta relación?")) return;
+        var (ok,_,msg) = await Sp.EjecutarSpAsync("sp_borrar_programa_pe", new() {
+            ["p_programa"]=int.Parse(ObtenerValor(reg,"programa")),
+            ["p_practica_estrategia"]=int.Parse(ObtenerValor(reg,"practica_estrategia")), ["p_resultado"]=null });
+        exito=ok; mensaje=ok?"Relación eliminada.":$"Error: {msg}";
+        if (ok) await CargarPE();
+    }
+
+    private async Task GuardarAC()
+    {
+        if (campoAC_Prog==0||campoAC_Area==0) { exito=false; mensaje="Seleccione programa y área."; return; }
+        var r = await Api.CrearAsync("programa_ac", new() { ["programa"]=campoAC_Prog, ["area_conocimiento"]=campoAC_Area });
+        exito=r.exito; mensaje=r.mensaje;
+        if (exito) { mostrarFormAC=false; await CargarAC(); }
+    }
+    private async Task EliminarAC(Dictionary<string,object?> reg)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm","¿Eliminar esta relación?")) return;
+        var (ok,_,msg) = await Sp.EjecutarSpAsync("sp_borrar_programa_ac", new() {
+            ["p_programa"]=int.Parse(ObtenerValor(reg,"programa")),
+            ["p_area_conocimiento"]=int.Parse(ObtenerValor(reg,"area_conocimiento")), ["p_resultado"]=null });
+        exito=ok; mensaje=ok?"Relación eliminada.":$"Error: {msg}";
+        if (ok) await CargarAC();
+    }
+
+    private async Task GuardarCI()
+    {
+        if (campoCI_Prog==0||campoCI_Car==0) { exito=false; mensaje="Seleccione programa y característica."; return; }
+        var r = await Api.CrearAsync("programa_ci", new() { ["programa"]=campoCI_Prog, ["car_innovacion"]=campoCI_Car });
+        exito=r.exito; mensaje=r.mensaje;
+        if (exito) { mostrarFormCI=false; await CargarCI(); }
+    }
+    private async Task EliminarCI(Dictionary<string,object?> reg)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm","¿Eliminar esta relación?")) return;
+        var (ok,_,msg) = await Sp.EjecutarSpAsync("sp_borrar_programa_ci", new() {
+            ["p_programa"]=int.Parse(ObtenerValor(reg,"programa")),
+            ["p_car_innovacion"]=int.Parse(ObtenerValor(reg,"car_innovacion")) });
+        exito=ok; mensaje=ok?"Relación eliminada.":$"Error: {msg}";
+        if (ok) await CargarCI();
+    }
+
+    // ══ FILAS DINÁMICAS ══════════════════════════════════════
+    private void AgregarPremio()           => filasPremios.Add(new());
+    private void QuitarPremio(int i)       => filasPremios.RemoveAt(i);
+    private void AgregarPasantia()         => filasPasantias.Add(new());
+    private void QuitarPasantia(int i)     => filasPasantias.RemoveAt(i);
+
+    // ══ HELPERS ══════════════════════════════════════════════
+    private static object? Str(string? v) => string.IsNullOrWhiteSpace(v) ? null : (object?)v;
+
+    private void LimpiarCampos() {
+        c_nombre=c_tipo=c_nivel=c_fecha_creacion=c_fecha_cierre=
+        c_numero_cohortes=c_cant_graduados=c_fecha_actualizacion=c_ciudad="";
+        c_facultad=0; filasPremios.Clear(); filasPasantias.Clear();
+    }
+
+    private string ObtenerValor(Dictionary<string,object?> dic, string clave) =>
+        dic.TryGetValue(clave, out var v) && v != null ? v.ToString() ?? "" : "";
+
+    private string ObtenerNombreEnLista(List<Dictionary<string,object?>> lista, string pk, string val, string campo) {
+        var item = lista.FirstOrDefault(x => ObtenerValor(x,pk) == val);
+        return item != null ? ObtenerValor(item,campo) : $"ID: {val}";
+    }
+
+    private List<Dictionary<string,object?>> ObtenerDetalles(Dictionary<string,object?> maestro, string clave) {
+        if (maestro.TryGetValue(clave, out var val) && val != null) {
+            var s = val.ToString() ?? "";
+            if (s.StartsWith("[")) try { return ParsearJsonArray(s); } catch { }
+            if (val is List<Dictionary<string,object?>> l) return l;
+        }
+        return new();
+    }
+
+    private string ObtenerEtiquetaAspecto(Dictionary<string,object?> a) =>
+        string.Join(" — ", new[]{ ObtenerValor(a,"tipo"), ObtenerValor(a,"descripcion") }.Where(s=>!string.IsNullOrWhiteSpace(s)));
+
+    private string ObtenerEtiquetaAspectoById(string id) {
+        var item = aspectos.FirstOrDefault(x => ObtenerValor(x,"id") == id);
+        return item != null ? ObtenerEtiquetaAspecto(item) : $"ID: {id}";
+    }
+
+    private string ObtenerEtiquetaArea(Dictionary<string,object?> a) =>
+        string.Join(" › ", new[]{ ObtenerValor(a,"gran_area"), ObtenerValor(a,"area"), ObtenerValor(a,"disciplina") }.Where(s=>!string.IsNullOrWhiteSpace(s)));
+
+    private string ObtenerEtiquetaAreaById(string id) {
+        var item = areas.FirstOrDefault(x => ObtenerValor(x,"id") == id);
+        return item != null ? ObtenerEtiquetaArea(item) : $"ID: {id}";
+    }
+
+    private List<Dictionary<string,object?>> ParsearJsonArray(string json) {
+        var lista = new List<Dictionary<string,object?>>();
+        var doc   = JsonDocument.Parse(json);
+        foreach (var elem in doc.RootElement.EnumerateArray()) {
+            var dic = new Dictionary<string,object?>();
+            foreach (var prop in elem.EnumerateObject())
+                dic[prop.Name] = prop.Value.ValueKind switch {
+                    JsonValueKind.String => prop.Value.GetString(),
+                    JsonValueKind.Number => prop.Value.TryGetInt32(out int i) ? i : prop.Value.GetDouble(),
+                    _ => prop.Value.GetRawText()
+                };
+            lista.Add(dic);
+        }
+        return lista;
+    }
+
+    private Dictionary<string,object?> AplanarJson(string json, string claveMaestro) {
+        var doc = JsonDocument.Parse(json);
+        var res = new Dictionary<string,object?>();
+        if (doc.RootElement.TryGetProperty(claveMaestro, out var obj) && obj.ValueKind == JsonValueKind.Object)
+            foreach (var prop in obj.EnumerateObject())
+                res[prop.Name] = prop.Value.ValueKind switch {
+                    JsonValueKind.String => prop.Value.GetString(),
+                    JsonValueKind.Number => prop.Value.TryGetInt32(out int i) ? i : prop.Value.GetDouble(),
+                    _ => prop.Value.GetRawText()
+                };
+        if (doc.RootElement.TryGetProperty("premios",   out var prem)) res["premios"]   = prem.GetRawText();
+        if (doc.RootElement.TryGetProperty("pasantias", out var pas))  res["pasantias"] = pas.GetRawText();
+        return res;
+    }
+}

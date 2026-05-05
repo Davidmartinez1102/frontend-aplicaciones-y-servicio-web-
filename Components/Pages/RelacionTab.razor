@@ -1,0 +1,79 @@
+@*
+    RelacionTab.razor
+    Componente genérico reutilizable para los módulos de relación (AN, PE, AC, CI).
+    Recibe: título, subtítulo, nombres de columnas, registros, estado de carga,
+            visibilidad del formulario, callbacks, y RenderFragments para
+            el formulario y las filas de la tabla.
+*@
+
+<div>
+    <!-- Section Header -->
+    <div class="section-header">
+        <div>
+            <h2 class="section-title">@Titulo</h2>
+            <p class="section-sub">@Subtitulo · @Registros.Count registro(s)</p>
+        </div>
+        @if (!MostrarFormulario)
+        {
+            <button class="btn-jade" @onclick="OnNuevo">＋ Nueva Relación</button>
+        }
+    </div>
+
+    <!-- Formulario (panel colapsable) -->
+    @if (MostrarFormulario)
+    {
+        <div class="form-panel">
+            <div class="form-panel-header">
+                <div class="form-panel-dot"></div>
+                <h4>Nueva Relación: @Titulo</h4>
+            </div>
+            <div class="form-panel-body">
+                @Formulario
+            </div>
+        </div>
+    }
+
+    <!-- Tabla de registros -->
+    @if (Cargando)
+    {
+        <div class="dash-spinner">
+            <div class="spinner-ring"></div> Cargando relaciones...
+        </div>
+    }
+    else if (Registros.Any() && !MostrarFormulario)
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@Columna1</th>
+                    <th>@Columna2</th>
+                    <th style="width:130px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @Filas
+            </tbody>
+        </table>
+    }
+    else if (!MostrarFormulario)
+    {
+        <div class="empty-state">
+            <div class="empty-icon">🔗</div>
+            <p>No hay relaciones registradas.</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Titulo           { get; set; } = "";
+    [Parameter] public string Subtitulo        { get; set; } = "";
+    [Parameter] public string Columna1         { get; set; } = "";
+    [Parameter] public string Columna2         { get; set; } = "";
+    [Parameter] public List<Dictionary<string, object?>> Registros { get; set; } = new();
+    [Parameter] public bool   Cargando         { get; set; } = false;
+    [Parameter] public bool   MostrarFormulario{ get; set; } = false;
+    [Parameter] public EventCallback OnNuevo   { get; set; }
+    [Parameter] public EventCallback OnCancelar{ get; set; }
+    [Parameter] public RenderFragment? Formulario { get; set; }
+    [Parameter] public RenderFragment? Filas      { get; set; }
+}
