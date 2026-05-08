@@ -190,5 +190,42 @@ namespace FrontBlazor_AppiGenericaCsharp.Services
             }
             return lista;
         }
+
+    public async Task<(bool exito, string mensaje)> EliminarAsync(string tabla,Dictionary<string, object?> claves)
+    {
+        try
+            {
+        // Construir querystring dinámico
+        var query = string.Join("&",
+            claves.Select(k =>
+                $"{Uri.EscapeDataString(k.Key)}={Uri.EscapeDataString(k.Value?.ToString() ?? "")}"
+            )
+        );
+
+        var respuesta = await _http.DeleteAsync(
+            $"/api/{tabla}?{query}");
+
+        var content = await respuesta.Content.ReadAsStringAsync();
+
+        if (string.IsNullOrWhiteSpace(content))
+            return (
+                respuesta.IsSuccessStatusCode,
+                respuesta.IsSuccessStatusCode
+                    ? "Operación completada."
+                    : "Error al procesar la solicitud."
+            );
+
+        var contenido = JsonSerializer.Deserialize<JsonElement>(content, _jsonOptions);
+
+        string mensaje = contenido.TryGetProperty("mensaje", out JsonElement msg)
+            ? msg.GetString() ?? "Operación completada."
+            : "Operación completada.";
+
+        return (respuesta.IsSuccessStatusCode, mensaje);
+         }
+        catch (Exception ex){
+        return (false, $"Error de conexión: {ex.Message}");
+        }
+}
     }
 }

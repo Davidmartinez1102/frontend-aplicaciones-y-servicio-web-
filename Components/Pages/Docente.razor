@@ -1,0 +1,699 @@
+@page "/docente"
+@rendermode InteractiveServer
+@inject FrontBlazor_AppiGenericaCsharp.Services.ApiService Api
+@inject IJSRuntime JS
+
+<PageTitle>Gestión de Docentes</PageTitle>
+
+<style>
+    :root {
+        --c-bg: #0f1117;
+        --c-surface: #1a1d27;
+        --c-border: #2a2d3e;
+        --c-accent: #6c63ff;
+        --c-accent2: #ff6584;
+        --c-text: #e2e8f0;
+        --c-muted: #718096;
+        --c-success: #48bb78;
+        --c-danger: #fc8181;
+        --c-warn: #f6ad55;
+        --radius: 12px;
+        --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    body { background: var(--c-bg); }
+
+    .doc-wrap {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        color: var(--c-text);
+        padding: 2rem 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, #6c63ff, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.25rem;
+    }
+
+    .page-sub { color: var(--c-muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+    /* ─── Cards ─── */
+    .card-dark {
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .card-head {
+        padding: 0.85rem 1.25rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--c-border);
+    }
+
+    .card-head.primary { background: linear-gradient(90deg, #2d2b55, #1a1d27); color: #a78bfa; }
+    .card-head.secondary { background: linear-gradient(90deg, #1e3a2f, #1a1d27); color: #68d391; }
+
+    .card-body { padding: 1.25rem; }
+
+    /* ─── Form ─── */
+    .form-label { font-size: 0.78rem; font-weight: 600; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.35rem; display: block; }
+
+    .form-control, .form-select {
+        background: #252836;
+        border: 1px solid var(--c-border);
+        color: var(--c-text);
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        width: 100%;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--c-accent);
+        box-shadow: 0 0 0 3px rgba(108,99,255,0.2);
+        background: #2a2d3e;
+    }
+
+    .form-control:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .form-select option { background: #252836; }
+
+    /* ─── Buttons ─── */
+    .btn { border: none; border-radius: 8px; padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.4rem; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--c-accent); color: #fff; }
+    .btn-primary:hover { background: #5a52e0; }
+    .btn-success { background: #2f6b4a; color: #68d391; border: 1px solid #3a8c5e; }
+    .btn-success:hover { background: #3a8c5e; }
+    .btn-secondary { background: #2a2d3e; color: var(--c-muted); border: 1px solid var(--c-border); }
+    .btn-secondary:hover { color: var(--c-text); }
+    .btn-warn { background: #4a3520; color: var(--c-warn); border: 1px solid #7a5a2a; font-size: 0.78rem; padding: 0.3rem 0.7rem; }
+    .btn-warn:hover { background: #7a5a2a; }
+    .btn-danger-sm { background: #4a1f1f; color: var(--c-danger); border: 1px solid #7a2f2f; font-size: 0.78rem; padding: 0.3rem 0.7rem; }
+    .btn-danger-sm:hover { background: #7a2f2f; }
+    .btn-add { background: #1e3a2f; color: #68d391; border: 1px solid #2a5a3f; font-size: 0.82rem; padding: 0.35rem 0.85rem; }
+    .btn-add:hover { background: #2a5a3f; }
+
+    /* ─── Alerts ─── */
+    .alert { border-radius: 8px; padding: 0.7rem 1rem; font-size: 0.875rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .alert-success { background: #1a3a28; color: var(--c-success); border: 1px solid #2a6040; }
+    .alert-danger { background: #3a1a1a; color: var(--c-danger); border: 1px solid #6a2a2a; }
+    .btn-close-alert { background: none; border: none; color: inherit; font-size: 1.1rem; cursor: pointer; opacity: 0.7; padding: 0; }
+    .btn-close-alert:hover { opacity: 1; }
+
+    /* ─── Table ─── */
+    .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .tbl thead tr { border-bottom: 2px solid var(--c-border); }
+    .tbl th { color: var(--c-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.6rem 0.75rem; text-align: left; }
+    .tbl td { padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(42,45,62,0.6); vertical-align: middle; }
+    .tbl tbody tr:hover { background: rgba(108,99,255,0.05); }
+    .tbl tbody tr.selected-row { background: rgba(108,99,255,0.12); border-left: 3px solid var(--c-accent); }
+
+    .badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+    .badge-purple { background: rgba(108,99,255,0.2); color: #a78bfa; }
+
+    /* ─── Spinner ─── */
+    .spinner { width: 1.5rem; height: 1.5rem; border: 2px solid var(--c-border); border-top-color: var(--c-accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 2rem auto; display: block; }
+    @@keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Divider ─── */
+    .section-divider { display: flex; align-items: center; gap: 0.75rem; margin: 1.5rem 0; color: var(--c-muted); font-size: 0.8rem; }
+    .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--c-border); }
+
+    /* ─── Dep detail panel ─── */
+    .dep-panel { background: #13151f; border: 1px solid var(--c-border); border-radius: var(--radius); padding: 1rem; }
+    .dep-panel-title { font-size: 0.8rem; color: #68d391; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem; }
+
+    .empty-msg { text-align: center; padding: 2rem; color: var(--c-muted); font-size: 0.875rem; }
+
+    /* ─── Grid helpers ─── */
+    .row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .col-2 { flex: 0 0 calc(16.66% - 0.65rem); min-width: 120px; }
+    .col-3 { flex: 0 0 calc(25% - 0.57rem); min-width: 140px; }
+    .col-4 { flex: 0 0 calc(33.33% - 0.5rem); min-width: 160px; }
+    .col-6 { flex: 0 0 calc(50% - 0.375rem); min-width: 180px; }
+    .col-12 { flex: 0 0 100%; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .gap-2 { gap: 0.5rem; }
+    .d-flex { display: flex; }
+    .align-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .fw-600 { font-weight: 600; }
+    .text-muted { color: var(--c-muted); }
+    .text-sm { font-size: 0.8rem; }
+</style>
+
+<div class="doc-wrap">
+    <div class="page-title">👨‍🏫 Gestión de Docentes</div>
+    <div class="page-sub">Administra el personal docente y sus asignaciones de departamento.</div>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(exito ? "alert-success" : "alert-danger")">
+            <span>@mensaje</span>
+            <button class="btn-close-alert" @onclick="() => mensaje = string.Empty">✕</button>
+        </div>
+    }
+
+    <!-- ════════════════════════════════════ FORMULARIO DOCENTE ═══════════════ -->
+    @if (mostrarFormulario)
+    {
+        <div class="card-dark">
+            <div class="card-head primary">
+                <span>@(editando ? "✏️" : "➕")</span>
+                @(editando ? $"Editar Docente — {campoNombres} {campoApellidos}" : "Nuevo Docente")
+            </div>
+            <div class="card-body">
+                <!-- Fila 1 -->
+                <div class="row mb-2">
+                    <div class="col-2">
+                        <label class="form-label">Cédula *</label>
+                        <input class="form-control" type="number" @bind="campoCedula" disabled="@editando" placeholder="Ej: 12345678" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Nombres *</label>
+                        <input class="form-control" @bind="campoNombres" placeholder="Nombres completos" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Apellidos *</label>
+                        <input class="form-control" @bind="campoApellidos" placeholder="Apellidos completos" />
+                    </div>
+                    <div class="col-2">
+                        <label class="form-label">Género</label>
+                        <select class="form-select" @bind="campoGenero">
+                            <option value="">--</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Fila 2 -->
+                <div class="row mb-2">
+                    <div class="col-4">
+                        <label class="form-label">Cargo</label>
+                        <input class="form-control" @bind="campoCargo" placeholder="Ej: Profesor Titular" />
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">Fecha Nacimiento</label>
+                        <input class="form-control" type="date" @bind="campoFechaNacimiento" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Correo</label>
+                        <input class="form-control" type="email" @bind="campoCorreo" placeholder="correo@institución.edu" />
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">Teléfono</label>
+                        <input class="form-control" @bind="campoTelefono" placeholder="Ej: 3001234567" />
+                    </div>
+                </div>
+                <!-- Fila 3 -->
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <label class="form-label">URL CV / LAC</label>
+                        <input class="form-control" @bind="campoUrlCvlac" placeholder="https://..." />
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">Escalafón</label>
+                        <input class="form-control" @bind="campoEscalafon" placeholder="Ej: Asociado" />
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">Perfil</label>
+                        <input class="form-control" @bind="campoPerfil" placeholder="Ej: Investigador" />
+                    </div>
+                </div>
+                <!-- Fila 4 -->
+                <div class="row mb-2">
+                    <div class="col-4">
+                        <label class="form-label">Cat. Minciencias</label>
+                        <input class="form-control" @bind="campoCatMinciencias" placeholder="Ej: Senior" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Conv. Minciencias</label>
+                        <input class="form-control" @bind="campoConvMinciencias" placeholder="Ej: 2022" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Nacionalidad</label>
+                        <input class="form-control" @bind="campoNacionalidad" placeholder="Ej: Colombiana" />
+                    </div>
+                </div>
+                <!-- Fila 5 -->
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <label class="form-label">Línea Investigación Principal</label>
+                        @if (cargandoLineas)
+                        {
+                            <div class="spinner" style="width:1rem;height:1rem;margin:0.4rem 0;"></div>
+                        }
+                        else
+                        {
+                            <select class="form-select" @bind="campoLineaInvestigacionId">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var li in lineasInvestigacion)
+                                {
+                                    <option value="@ObtenerValor(li, "id")">@ObtenerValor(li, "nombre")</option>
+                                }
+                            </select>
+                        }
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">Fecha Actualización</label>
+                        <input class="form-control" type="date" @bind="campoFechaActualizacion" />
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-1">
+                    <button class="btn btn-success" @onclick="GuardarDocente">💾 Guardar Docente</button>
+                    <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ SECCIÓN DEPARTAMENTOS (solo en edición) ══════════ -->
+        @if (editando)
+        {
+            <div class="section-divider">🏛️ Asignaciones de Departamento</div>
+
+            <div class="card-dark">
+                <div class="card-head secondary">
+                    <span>🏛️</span> Departamentos del Docente
+                    <span class="badge badge-purple" style="margin-left:auto;">@asignaciones.Count asignado(s)</span>
+                </div>
+                <div class="card-body">
+
+                    <!-- Mini-formulario nueva asignación -->
+                    <div class="dep-panel mb-2">
+                        <div class="dep-panel-title">➕ Nueva Asignación</div>
+                        <div class="row">
+                            <div class="col-3">
+                                <label class="form-label">Departamento *</label>
+                                @if (cargandoDepartamentos)
+                                {
+                                    <div class="spinner" style="width:1rem;height:1rem;margin:0.4rem 0;"></div>
+                                }
+                                else
+                                {
+                                    <select class="form-select" @bind="asigDepId">
+                                        <option value="0">-- Seleccione --</option>
+                                        @foreach (var dep in departamentos)
+                                        {
+                                            <option value="@ObtenerValor(dep, "id")">@ObtenerValor(dep, "nombre")</option>
+                                        }
+                                    </select>
+                                }
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">Dedicación</label>
+                                <select class="form-select" @bind="asigDedicacion">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Tiempo Completo">Tiempo Completo</option>
+                                    <option value="Medio Tiempo">Medio Tiempo</option>
+                                    <option value="Cátedra">Cátedra</option>
+                                    <option value="Ocasional">Ocasional</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">Modalidad</label>
+                                <select class="form-select" @bind="asigModalidad">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Presencial">Presencial</option>
+                                    <option value="Virtual">Virtual</option>
+                                    <option value="Híbrida">Híbrida</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">Fecha Ingreso</label>
+                                <input class="form-control" type="date" @bind="asigFechaIngreso" />
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">Fecha Salida</label>
+                                <input class="form-control" type="date" @bind="asigFechaSalida" />
+                            </div>
+                            <div class="col-12 mt-1">
+                                <button class="btn btn-add" @onclick="AgregarAsignacion">➕ Agregar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla asignaciones existentes -->
+                    @if (cargandoAsignaciones)
+                    {
+                        <div class="spinner"></div>
+                    }
+                    else if (asignaciones.Any())
+                    {
+                        <table class="tbl">
+                            <thead>
+                                <tr>
+                                    <th>Departamento</th>
+                                    <th>Dedicación</th>
+                                    <th>Modalidad</th>
+                                    <th>Ingreso</th>
+                                    <th>Salida</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var a in asignaciones)
+                                {
+                                    <tr>
+                                        <td><span class="badge badge-purple">@ObtenerNombreDep(ObtenerValor(a, "departamento"))</span></td>
+                                        <td>@ObtenerValor(a, "dedicacion")</td>
+                                        <td>@ObtenerValor(a, "modalidad")</td>
+                                        <td>@ObtenerValor(a, "fecha_ingreso")</td>
+                                        <td class="text-muted">@(ObtenerValor(a, "fecha_salida") is "" ? "—" : ObtenerValor(a, "fecha_salida"))</td>
+                                        <td>
+                                            <button class="btn btn-danger-sm" @onclick="() => EliminarAsignacion(a)">🗑 Quitar</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="empty-msg">Sin departamentos asignados.</div>
+                    }
+                </div>
+            </div>
+        }
+    }
+
+    <!-- ════════════════════════════════════ BOTÓN + TABLA LISTADO ════════════ -->
+    @if (!mostrarFormulario)
+    {
+        <div class="d-flex justify-between align-center mb-2">
+            <button class="btn btn-primary" @onclick="NuevoDocente">➕ Nuevo Docente</button>
+            <span class="text-muted text-sm">@registros.Count docente(s) registrado(s)</span>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="spinner"></div>
+        }
+        else if (registros.Any())
+        {
+            <div class="card-dark">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Cédula</th>
+                            <th>Nombres</th>
+                            <th>Apellidos</th>
+                            <th>Cargo</th>
+                            <th>Correo</th>
+                            <th>Perfil</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var reg in registros)
+                        {
+                            <tr>
+                                <td class="fw-600">@ObtenerValor(reg, "cedula")</td>
+                                <td>@ObtenerValor(reg, "nombres")</td>
+                                <td>@ObtenerValor(reg, "apellidos")</td>
+                                <td class="text-muted">@ObtenerValor(reg, "cargo")</td>
+                                <td class="text-muted text-sm">@ObtenerValor(reg, "correo")</td>
+                                <td><span class="badge badge-purple">@ObtenerValor(reg, "perfil")</span></td>
+                                <td>
+                                    <button class="btn btn-warn" @onclick="() => EditarDocente(reg)">✏️ Editar</button>
+                                    <button class="btn btn-danger-sm" @onclick="() => EliminarDocente(reg)">🗑</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-msg card-dark" style="padding:2.5rem;">Sin docentes registrados aún.</div>
+        }
+    }
+</div>
+
+@code {
+    // ─── Listas ───────────────────────────────────────────────────────────────
+    private List<Dictionary<string, object?>> registros = new();
+    private List<Dictionary<string, object?>> departamentos = new();
+    private List<Dictionary<string, object?>> lineasInvestigacion = new();
+    private List<Dictionary<string, object?>> asignaciones = new();
+
+    // ─── Flags ────────────────────────────────────────────────────────────────
+    private bool cargando = true;
+    private bool cargandoDepartamentos = true;
+    private bool cargandoLineas = true;
+    private bool cargandoAsignaciones = false;
+    private bool mostrarFormulario = false;
+    private bool editando = false;
+    private string mensaje = string.Empty;
+    private bool exito = false;
+
+    // ─── Campos Docente ───────────────────────────────────────────────────────
+    private int campoCedula = 0;
+    private string campoNombres = string.Empty;
+    private string campoApellidos = string.Empty;
+    private string campoGenero = string.Empty;
+    private string campoCargo = string.Empty;
+    private DateTime? campoFechaNacimiento = null;
+    private string campoCorreo = string.Empty;
+    private string campoTelefono = string.Empty;
+    private string campoUrlCvlac = string.Empty;
+    private DateTime? campoFechaActualizacion = null;
+    private string campoEscalafon = string.Empty;
+    private string campoPerfil = string.Empty;
+    private string campoCatMinciencias = string.Empty;
+    private string campoConvMinciencias = string.Empty;
+    private string campoNacionalidad = string.Empty;
+    private int campoLineaInvestigacionId = 0;
+
+    // ─── Campos Asignación Departamento ───────────────────────────────────────
+    private int asigDepId = 0;
+    private string asigDedicacion = string.Empty;
+    private string asigModalidad = string.Empty;
+    private DateTime? asigFechaIngreso = null;
+    private DateTime? asigFechaSalida = null;
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(CargarRegistros(), CargarDepartamentos(), CargarLineas());
+    }
+
+    private async Task CargarRegistros()
+    {
+        cargando = true;
+        registros = await Api.ListarAsync("docente") ?? new();
+        cargando = false;
+    }
+
+    private async Task CargarDepartamentos()
+    {
+        cargandoDepartamentos = true;
+        departamentos = await Api.ListarAsync("departamento") ?? new();
+        cargandoDepartamentos = false;
+    }
+
+    private async Task CargarLineas()
+    {
+        cargandoLineas = true;
+        // Ajusta el endpoint si tu API usa otro nombre
+        lineasInvestigacion = await Api.ListarAsync("linea_investigacion") ?? new();
+        cargandoLineas = false;
+    }
+
+    private async Task CargarAsignaciones()
+    {
+        cargandoAsignaciones = true;
+        // Filtra asignaciones del docente actual; ajusta el endpoint según tu API
+        asignaciones = await Api.ListarAsync($"docente_departamento?docente={campoCedula}") ?? new();
+        cargandoAsignaciones = false;
+    }
+
+    // ─── CRUD Docente ─────────────────────────────────────────────────────────
+    private void NuevoDocente()
+    {
+        LimpiarCamposDocente();
+        editando = false;
+        mostrarFormulario = true;
+        mensaje = string.Empty;
+    }
+
+    private async Task EditarDocente(Dictionary<string, object?> reg)
+    {
+        editando = true;
+        campoCedula = int.TryParse(ObtenerValor(reg, "cedula"), out int c) ? c : 0;
+        campoNombres = ObtenerValor(reg, "nombres");
+        campoApellidos = ObtenerValor(reg, "apellidos");
+        campoGenero = ObtenerValor(reg, "genero");
+        campoCargo = ObtenerValor(reg, "cargo");
+        campoFechaNacimiento = DateTime.TryParse(ObtenerValor(reg, "fecha_nacimiento"), out var fn) ? fn : null;
+        campoCorreo = ObtenerValor(reg, "correo");
+        campoTelefono = ObtenerValor(reg, "telefono");
+        campoUrlCvlac = ObtenerValor(reg, "url_cvlac");
+        campoFechaActualizacion = DateTime.TryParse(ObtenerValor(reg, "fecha_actualizacion"), out var fa) ? fa : null;
+        campoEscalafon = ObtenerValor(reg, "escalafon");
+        campoPerfil = ObtenerValor(reg, "perfil");
+        campoCatMinciencias = ObtenerValor(reg, "cat_minciencia");
+        campoConvMinciencias = ObtenerValor(reg, "conv_minciencia");
+        campoNacionalidad = ObtenerValor(reg, "nacionalidaad"); // typo en BD respetado
+        campoLineaInvestigacionId = int.TryParse(ObtenerValor(reg, "linea_investigacion_principal"), out int li) ? li : 0;
+        mostrarFormulario = true;
+        mensaje = string.Empty;
+        await CargarAsignaciones();
+    }
+
+    private async Task GuardarDocente()
+    {
+        if (string.IsNullOrWhiteSpace(campoNombres) || string.IsNullOrWhiteSpace(campoApellidos))
+        {
+            exito = false; mensaje = "Nombres y apellidos son obligatorios."; return;
+        }
+
+        var datos = new Dictionary<string, object?>
+        {
+            ["cedula"] = campoCedula,
+            ["nombres"] = campoNombres,
+            ["apellidos"] = campoApellidos,
+            ["genero"] = campoGenero,
+            ["cargo"] = campoCargo,
+            ["fecha_nacimiento"] = campoFechaNacimiento?.ToString("yyyy-MM-dd"),
+            ["correo"] = campoCorreo,
+            ["telefono"] = campoTelefono,
+            ["url_cvlac"] = campoUrlCvlac,
+            ["fecha_actualizacion"] = campoFechaActualizacion?.ToString("yyyy-MM-dd"),
+            ["escalafon"] = campoEscalafon,
+            ["perfil"] = campoPerfil,
+            ["cat_minciencia"] = campoCatMinciencias,
+            ["conv_minciencia"] = campoConvMinciencias,
+            ["nacionalidaad"] = campoNacionalidad,
+            ["linea_investigacion_principal"] = campoLineaInvestigacionId == 0 ? null : (object?)campoLineaInvestigacionId
+        };
+
+        if (editando)
+        {
+            datos.Remove("cedula");
+            var ok = await JS.InvokeAsync<bool>("confirm", $"¿Actualizar Docente #{campoCedula}?");
+            if (!ok) return;
+            var r = await Api.ActualizarAsync("docente", "cedula", campoCedula.ToString(), datos);
+            exito = r.exito; mensaje = r.mensaje;
+        }
+        else
+        {
+            var r = await Api.CrearAsync("docente", datos);
+            exito = r.exito; mensaje = r.mensaje;
+            if (exito)
+            {
+                // Activar modo edición para poder asignar departamentos
+                editando = true;
+                asignaciones.Clear();
+            }
+        }
+
+        if (exito) await CargarRegistros();
+    }
+
+    private async Task EliminarDocente(Dictionary<string, object?> reg)
+    {
+        string ced = ObtenerValor(reg, "cedula");
+        var ok = await JS.InvokeAsync<bool>("confirm", $"¿Eliminar Docente #{ced}? También se eliminarán sus asignaciones.");
+        if (!ok) return;
+        var r = await Api.EliminarAsync("docente", "cedula", ced);
+        exito = r.exito; mensaje = r.mensaje;
+        if (exito) await CargarRegistros();
+    }
+
+    // ─── CRUD Asignaciones ────────────────────────────────────────────────────
+    private async Task AgregarAsignacion()
+    {
+        if (asigDepId == 0) { exito = false; mensaje = "Seleccione un departamento."; return; }
+
+        var datos = new Dictionary<string, object?>
+        {
+            ["docente"] = campoCedula,
+            ["departamento"] = asigDepId,
+            ["dedicacion"] = asigDedicacion,
+            ["modalidad"] = asigModalidad,
+            ["fecha_ingreso"] = asigFechaIngreso?.ToString("yyyy-MM-dd"),
+            ["fecha_salida"] = asigFechaSalida?.ToString("yyyy-MM-dd")
+        };
+
+        var r = await Api.CrearAsync("docente_departamento", datos);
+        exito = r.exito; mensaje = r.mensaje;
+
+        if (exito)
+        {
+            // Limpiar mini-form
+            asigDepId = 0; asigDedicacion = string.Empty; asigModalidad = string.Empty;
+            asigFechaIngreso = null; asigFechaSalida = null;
+            await CargarAsignaciones();
+        }
+    }
+
+    private async Task EliminarAsignacion(Dictionary<string, object?> a)
+{
+    string depId = ObtenerValor(a, "departamento");
+    var ok = await JS.InvokeAsync<bool>("confirm", 
+        $"¿Quitar la asignación al departamento {ObtenerNombreDep(depId)}?");
+    if (!ok) return;
+
+    var claves = new Dictionary<string, object?>
+    {
+        ["docente"] = campoCedula,
+        ["departamento"] = depId
+    };
+
+    var r = await Api.EliminarAsync("docente_departamento", claves);
+    exito = r.exito; 
+    mensaje = r.mensaje;
+    if (exito) await CargarAsignaciones();
+}
+
+    private void Cancelar()
+    {
+        mostrarFormulario = false;
+        mensaje = string.Empty;
+        asignaciones.Clear();
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    private void LimpiarCamposDocente()
+    {
+        campoCedula = 0; campoNombres = string.Empty; campoApellidos = string.Empty;
+        campoGenero = string.Empty; campoCargo = string.Empty; campoFechaNacimiento = null;
+        campoCorreo = string.Empty; campoTelefono = string.Empty; campoUrlCvlac = string.Empty;
+        campoFechaActualizacion = null; campoEscalafon = string.Empty; campoPerfil = string.Empty;
+        campoCatMinciencias = string.Empty; campoConvMinciencias = string.Empty;
+        campoNacionalidad = string.Empty; campoLineaInvestigacionId = 0;
+        asignaciones.Clear();
+    }
+
+    private string ObtenerNombreDep(string id)
+    {
+        var dep = departamentos.FirstOrDefault(x => ObtenerValor(x, "id") == id);
+        return dep != null ? ObtenerValor(dep, "nombre") : (!string.IsNullOrEmpty(id) ? $"Dep#{id}" : "—");
+    }
+
+    private string ObtenerValor(Dictionary<string, object?> dic, string clave)
+    {
+        if (dic.TryGetValue(clave, out var val) && val != null) return val.ToString() ?? "";
+        return "";
+    }
+}
