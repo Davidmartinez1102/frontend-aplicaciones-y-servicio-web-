@@ -17,6 +17,8 @@ builder.Services.AddScoped(sp => new HttpClient
 builder.Services.AddScoped<FrontBlazor_AppiGenericaCsharp.Services.ApiService>();
 // reGISTRAR LA API 
 builder.Services.AddScoped<FrontBlazor_AppiGenericaCsharp.Services.SpService>();
+// REGISTRAR EL SERVICIO DE AUTENTICACIÓN (EL NUEVO)
+builder.Services.AddScoped<FrontBlazor_AppiGenericaCsharp.Services.AuthService>();
 
 
 var app = builder.Build();
